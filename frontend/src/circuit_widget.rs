@@ -101,6 +101,7 @@ impl CircuitWidgetCamera {
         let area = resp.interact_rect;
 
         let pivot_vect = (1. - zoom_delta) * (pivot - area.center());
+        self.pos -= pivot_vect / self.zoom;
 
         if resp.dragged() {
             self.pos -= resp.drag_delta() / self.zoom;
