@@ -20,7 +20,7 @@ pub enum Component {
 }
 
 /// Represents the wire states of a component
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct ComponentState {
     pub top: WireState,
     pub bottom: WireState,
@@ -45,7 +45,7 @@ pub enum ComponentState {
 }
 */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct WireState {
     pub current: f32,
     pub voltage: f32,
@@ -67,7 +67,7 @@ pub enum Orientation {
     Rot270,
 }
 
-type Coord = (usize, usize);
+pub type CellPos = (i32, i32);
 
 #[derive(Clone, Copy, Debug)]
 pub struct DiagramCell {
@@ -78,7 +78,11 @@ pub struct DiagramCell {
 
 /// Represents the pictoral representation of a circuit, 
 /// in a way that uniquely defines a circuit (or some open-ended garbage).
-pub type Diagram = HashMap<Coord, DiagramCell>;
+pub type Diagram = HashMap<CellPos, DiagramCell>;
 
 /// Represents only the state corresponding to a diagram
-pub type DiagramState = HashMap<Coord, ComponentState>;
+pub type DiagramState = HashMap<CellPos, ComponentState>;
+
+pub fn default_diagram_state(diagram: &Diagram) -> DiagramState {
+    diagram.keys().map(|&pos| (pos, ComponentState::default())).collect()
+}
