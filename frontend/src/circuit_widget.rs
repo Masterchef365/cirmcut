@@ -12,7 +12,7 @@ pub fn circuit_widget(
 ) -> egui::Response {
     let resp = ui.allocate_response(desired_size, Sense::click_and_drag());
 
-    let scroll_speed = 1e-2;
+    let scroll_speed = -1e-2;
     let zoom_delta = ui.input(|r| r.zoom_delta() * (1.0 - r.smooth_scroll_delta.y * scroll_speed));
 
     let hover = resp.hover_pos().unwrap_or(Pos2::ZERO);
@@ -33,8 +33,8 @@ pub fn circuit_widget(
     let ((min_x, min_y), (max_x, max_y)) = transf.visible_rect();
 
     let mut n = 0;
-    'outer: for y in min_y..=max_y {
-        for x in min_x..=max_x {
+    'outer: for y in min_y..=max_y+1 {
+        for x in min_x..=max_x+1 {
             n += 1;
             if n > 1_000_000 {
                 break 'outer;
@@ -95,8 +95,10 @@ struct CircuitWidgetCameraTransformation {
 
 impl CircuitWidgetCamera {
     fn drive(&mut self, resp: &egui::Response, zoom_delta: f32, pivot: Pos2) -> CircuitWidgetCameraTransformation {
+        let old_zoom = self.zoom;
         self.zoom *= zoom_delta;
-        self.zoom = self.zoom.clamp(2.0, 300.0);
+        self.zoom = self.zoom.clamp(10.0, 300.0);
+        let zoom_delta = self.zoom / old_zoom;
 
         let area = resp.interact_rect;
 
