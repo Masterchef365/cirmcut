@@ -26,9 +26,8 @@ pub fn circuit_widget(
     });
 
     // Use the response to drive the camera
-    let mut camera = ui.memory_mut(|mem| {
-        *mem.data.get_temp_mut_or_default::<CircuitWidgetCamera>(id)
-    });
+    let mut camera =
+        ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<CircuitWidgetCamera>(id));
     let transf = camera.drive(&resp, zoom_delta, zoom_pivot);
     ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default(id) = camera);
 
@@ -38,8 +37,8 @@ pub fn circuit_widget(
 
     // Draw visible circuit elements
     let mut n = 0;
-    'outer: for y in min_y..=max_y+1 {
-        for x in min_x..=max_x+1 {
+    'outer: for y in min_y..=max_y + 1 {
+        for x in min_x..=max_x + 1 {
             n += 1;
             if n > 1_000_000 {
                 break 'outer;
@@ -49,7 +48,7 @@ pub fn circuit_widget(
             let tl = transf.sim_to_egui(pos);
 
             // Draw a little dot at the corner of each visible space
-            painter.circle_filled(tl, transf.camera.zoom/50., Color32::LIGHT_GRAY);
+            painter.circle_filled(tl, transf.camera.zoom / 50., Color32::LIGHT_GRAY);
             //painter.text(tl, Align2::CENTER_CENTER, format!("{x},{y}"), Default::default(), Color32::RED);
 
             // Draw cell
@@ -107,7 +106,12 @@ struct CircuitWidgetCameraTransformation {
 }
 
 impl CircuitWidgetCamera {
-    fn drive(&mut self, resp: &egui::Response, zoom_delta: f32, pivot: Pos2) -> CircuitWidgetCameraTransformation {
+    fn drive(
+        &mut self,
+        resp: &egui::Response,
+        zoom_delta: f32,
+        pivot: Pos2,
+    ) -> CircuitWidgetCameraTransformation {
         let old_zoom = self.zoom;
         self.zoom *= zoom_delta;
         self.zoom = self.zoom.clamp(10.0, 300.0);
@@ -120,6 +124,19 @@ impl CircuitWidgetCamera {
 
         if resp.dragged() {
             self.pos -= resp.drag_delta() / self.zoom;
+        }
+
+        if resp.clicked_by(PointerButton::Secondary) {
+            *self = Self::default();
+        }
+
+        let scroll = resp.ctx.input(|r| r.raw_scroll_delta.x);
+        if resp.ctx.input(|m| m.modifiers.shift) {
+            if resp.ctx.input(|m| m.modifiers.alt) {
+                self.pos.y -= scroll / self.zoom;
+            } else {
+                self.pos.x -= scroll / self.zoom;
+            }
         }
 
         CircuitWidgetCameraTransformation {

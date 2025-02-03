@@ -45,17 +45,17 @@ impl eframe::App for TemplateApp {
             });
         });
 
-        egui::SidePanel::left("cfg").show(ctx, |ui| {
-        });
+        egui::SidePanel::left("cfg").show(ctx, |ui| {});
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                let space = ui.available_size();
                 circuit_widget(
                     &mut Default::default(),
                     &mut self.selection,
                     &Default::default(),
                     ui,
-                    Vec2::INFINITY,
+                    space,
                     Id::new("cirmcut"),
                 );
             });
