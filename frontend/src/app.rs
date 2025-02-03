@@ -1,3 +1,4 @@
+use cirmcut_sim::CellPos;
 use egui::{Id, Vec2};
 
 use crate::circuit_widget::circuit_widget;
@@ -5,6 +6,7 @@ use crate::circuit_widget::circuit_widget;
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
 pub struct TemplateApp {
+    selection: CellPos,
     label: String,
     #[serde(skip)]
     value: f32,
@@ -13,6 +15,7 @@ pub struct TemplateApp {
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
+            selection: (0, 0),
             label: "Hello World!".to_owned(),
             value: 2.7,
         }
@@ -41,14 +44,21 @@ impl eframe::App for TemplateApp {
                 });
             });
         });
+
+        egui::SidePanel::left("cfg").show(ctx, |ui| {
+        });
+
         egui::CentralPanel::default().show(ctx, |ui| {
-            circuit_widget(
-                &mut Default::default(),
-                &Default::default(),
-                ui,
-                Vec2::INFINITY,
-                Id::new("cirmcut"),
-            );
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                circuit_widget(
+                    &mut Default::default(),
+                    &mut self.selection,
+                    &Default::default(),
+                    ui,
+                    Vec2::INFINITY,
+                    Id::new("cirmcut"),
+                );
+            });
         });
     }
 }
