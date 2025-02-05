@@ -1,5 +1,5 @@
 use cirmcut_sim::{CellPos, Component, ComponentState, DiagramCell, Orientation, WireState};
-use egui::{Id, Vec2};
+use egui::{Id, Rect, Vec2};
 
 use crate::circuit_widget::{circuit_widget, ComponentButton};
 
@@ -10,11 +10,13 @@ pub struct TemplateApp {
     label: String,
     #[serde(skip)]
     value: f32,
+    scene_rect: Rect,
 }
 
 impl Default for TemplateApp {
     fn default() -> Self {
         Self {
+            scene_rect: Rect::ZERO,
             selection: (0, 0),
             label: "Hello World!".to_owned(),
             value: 2.7,
@@ -25,7 +27,7 @@ impl Default for TemplateApp {
 impl TemplateApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+            //return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
         Default::default()
     }
@@ -61,14 +63,11 @@ impl eframe::App for TemplateApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let space = ui.available_size();
                 circuit_widget(
                     &mut Default::default(),
-                    &mut self.selection,
                     &Default::default(),
                     ui,
-                    space,
-                    Id::new("cirmcut"),
+                    &mut self.scene_rect,
                 );
             });
         });

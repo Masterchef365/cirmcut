@@ -2,5 +2,5 @@
 
 mod app;
 pub use app::TemplateApp;
-mod camera;
+//mod camera;
 mod circuit_widget;
