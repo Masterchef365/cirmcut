@@ -69,7 +69,7 @@ pub fn circuit_widget(
 
     let tl = transf.sim_to_egui(*selection);
     let rect = Rect::from_min_size(tl, Vec2::splat(transf.camera.zoom));
-    painter.rect_stroke(rect, Rounding::ZERO, Stroke::new(1., Color32::RED));
+    painter.rect_stroke(rect, 0.0, Stroke::new(1., Color32::RED), egui::StrokeKind::Inside);
 
     resp
 }
