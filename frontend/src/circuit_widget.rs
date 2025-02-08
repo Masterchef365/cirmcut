@@ -11,43 +11,51 @@ fn cellpos_to_egui((x, y): CellPos) -> Pos2 {
 
 fn egui_to_cellpos(pos: Pos2) -> CellPos {
     (
-        (pos.x.floor() / CELL_SIZE) as i32,
-        (pos.y.floor() / CELL_SIZE) as i32,
+        (pos.x / CELL_SIZE).floor() as i32,
+        (pos.y / CELL_SIZE).floor() as i32,
     )
 }
 
 pub fn circuit_widget(
     diagram: &mut Diagram,
     state: &DiagramState,
+    selection: &mut CellPos,
     ui: &mut egui::Ui,
     scene_rect: &mut Rect,
-) {
+) -> egui::Response {
     let rect = *scene_rect;
     egui::Scene::new()
         .show(ui, scene_rect, |ui| {
             let (min_x, min_y) = egui_to_cellpos(rect.min.floor());
             let (max_x, max_y) = egui_to_cellpos(rect.max.ceil());
 
-            let default_area = ui.allocate_rect(
+            let _unused = ui.allocate_rect(
                 Rect::from_min_size(Pos2::ZERO, Vec2::splat(100.0)),
-                Sense::HOVER,
+                Sense::click(),
             );
+
+            let background_resp = ui.allocate_rect(
+                rect,
+                Sense::click(),
+            );
+
             let painter = ui.painter();
+            let selected_rect = 
+                Rect::from_two_pos(cellpos_to_egui(*selection), cellpos_to_egui((selection.0 + 1, selection.1 + 1)));
             painter.rect_stroke(
-                default_area.rect,
-                0.0,
+                selected_rect,
+                5.0,
                 Stroke::new(1.0, Color32::WHITE),
                 egui::StrokeKind::Inside,
             );
 
-            dbg!(min_x, max_x);
-
             // Draw visible circuit elements
             let mut n = 0;
+            const MAX_N: i32 = 100_000;
             'outer: for y in min_y..=max_y {
                 for x in min_x..=max_x {
                     n += 1;
-                    if n > 100_000 {
+                    if n > MAX_N {
                         break 'outer;
                     }
 
@@ -64,7 +72,9 @@ pub fn circuit_widget(
                     }
                 }
             }
-            dbg!(n);
+            if n > MAX_N {
+                eprintln!("WARNING: zoomed out too far!");
+            }
 
             /*
             // Selection
@@ -76,8 +86,14 @@ pub fn circuit_widget(
             let rect = Rect::from_min_size(tl, Vec2::splat(transf.camera.zoom));
             painter.rect_stroke(rect, 0.0, Stroke::new(1., Color32::RED), egui::StrokeKind::Inside);
 
-            resp
             */
+            if background_resp.clicked() {
+                if let Some(click) = background_resp.interact_pointer_pos() {
+                    *selection = dbg!(egui_to_cellpos(click));
+                }
+            }
+
+            background_resp
         })
         .inner
 }
