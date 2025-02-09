@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use cirmcut_sim::CellPos;
-use egui::{Color32, Id, Pos2, Rect, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Id, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 use crate::circuit_widget::{
     cellpos_to_egui, cellpos_to_egui_vec, draw_grid, egui_to_cellpos, egui_to_cellvec,
@@ -115,14 +115,26 @@ impl DiagramEditor {
     }
 
     pub fn edit(&mut self, ui: &mut Ui) {
-        let mut any_changed = false;
-        for (idx, comp) in self.components.iter_mut().enumerate() {
-            let ret = interact_with_component(ui, comp, self.selected == Some(idx));
-            if ret.clicked() {
-                self.selected = Some(idx);
-            }
+        let mut body_responses = vec![];
 
-            any_changed |= ret.changed();
+        let mut any_changed = false;
+        let mut new_selection = None;
+        for (idx, comp) in self.components.iter_mut().enumerate() {
+            let ret = interact_with_component_body(ui, comp);
+            if ret.clicked() {
+                new_selection = Some(idx);
+            }
+            body_responses.push(ret);
+        }
+
+        for (idx, (resp, comp)) in body_responses.drain(..).zip(self.components.iter_mut()).enumerate() {
+            if interact_with_component(ui, comp, resp, self.selected == Some(idx)) {
+                any_changed = true;
+            }
+        }
+
+        if let Some(sel) = new_selection {
+            self.selected = Some(sel);
         }
 
         if any_changed {
@@ -161,11 +173,24 @@ impl DiagramEditor {
     }
 }
 
+fn interact_with_component_body (
+    ui: &mut Ui,
+    comp: &mut TwoTerminalComponent,
+) -> egui::Response {
+    let begin = cellpos_to_egui(comp.begin);
+    let end = cellpos_to_egui(comp.end);
+    let body_rect = Rect::from_points(&[begin, end]);
+    let body_hitbox = body_rect.expand(10.0);
+
+    ui.allocate_rect(body_hitbox, Sense::click_and_drag())
+}
+
 fn interact_with_component(
     ui: &mut Ui,
     comp: &mut TwoTerminalComponent,
+    body_resp: Response,
     selected: bool,
-) -> egui::Response {
+) -> bool {
     let id = Id::new("component body");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
@@ -176,12 +201,12 @@ fn interact_with_component(
     let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
     let end_hitbox = Rect::from_center_size(end, Vec2::splat(handle_hitbox_size));
 
-    let mut body_resp = ui.allocate_rect(body_hitbox, Sense::click_and_drag());
-
     let mut begin_offset = Vec2::ZERO;
     let mut end_offset = Vec2::ZERO;
 
-    let debug = true;
+    let debug = false;
+
+    let mut any_changed = false; 
 
     if selected {
         let end_resp = ui.interact(end_hitbox, id.with("end"), Sense::click_and_drag());
@@ -216,7 +241,7 @@ fn interact_with_component(
         if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
             comp.begin = egui_to_cellpos(begin + begin_offset);
             comp.end = egui_to_cellpos(end + end_offset);
-            body_resp.mark_changed();
+            any_changed = true;
         }
 
         if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
@@ -267,7 +292,7 @@ fn interact_with_component(
         Stroke::new(3., color),
     );
 
-    body_resp
+    any_changed
 }
 
 impl Diagram {
