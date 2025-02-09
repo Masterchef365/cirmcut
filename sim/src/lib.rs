@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub type CellPos = (i32, i32);
+/*
 /// Represents a single circuit element.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Component {
@@ -86,3 +88,4 @@ pub type DiagramState = HashMap<CellPos, ComponentState>;
 pub fn default_diagram_state(diagram: &Diagram) -> DiagramState {
     diagram.keys().map(|&pos| (pos, ComponentState::default())).collect()
 }
+*/
