@@ -82,12 +82,14 @@ impl eframe::App for TemplateApp {
 
 struct DiagramEditor {
     components: Vec<TwoTerminalComponent>,
+    selected: Option<usize>,
 }
 
 impl DiagramEditor {
     pub fn new(diagram: Diagram) -> Self {
         Self {
             components: diagram.components,
+            selected: None,
         }
     }
 
@@ -105,7 +107,9 @@ impl DiagramEditor {
 
     pub fn edit(&mut self, ui: &mut Ui, view_rect: Rect) {
         for (idx, comp) in self.components.iter_mut().enumerate() {
-            interact_with_component(ui, comp);
+            if interact_with_component(ui, comp, self.selected == Some(idx)).clicked() {
+                self.selected = Some(idx);
+            }
         }
     }
 
@@ -132,7 +136,7 @@ impl DiagramEditor {
     }
 }
 
-fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui::Response {
+fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent, selected: bool) -> egui::Response {
     let id = Id::new("component body");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
@@ -143,25 +147,14 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
     let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
     let end_hitbox = Rect::from_center_size(end, Vec2::splat(handle_hitbox_size));
 
-    let body_resp = ui.interact(body_hitbox, id, Sense::click_and_drag());
-
-    if body_resp.clicked() {
-        body_resp.request_focus();
-    }
+    let body_resp = ui.allocate_rect(body_hitbox, Sense::click_and_drag());
 
     let mut begin_offset = Vec2::ZERO;
     let mut end_offset = Vec2::ZERO;
 
-    if body_resp.has_focus() {
+    if selected {
         let end_resp = ui.interact(end_hitbox, id.with("end"), Sense::click_and_drag());
         let begin_resp = ui.interact(begin_hitbox, id.with("begin"), Sense::click_and_drag());
-
-        if begin_resp.clicked() {
-            panic!()
-        }
-        if end_resp.clicked() {
-            panic!()
-        }
 
         let interact_pos = body_resp
             .interact_pointer_pos()
@@ -213,13 +206,12 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
         );
     }
 
-    let has_focus = body_resp.has_focus();
     ui.painter().rect_stroke(
         body_hitbox.translate((begin_offset + end_offset) / 2.0),
         0.0,
         Stroke::new(
             1.,
-            if has_focus {
+            if selected {
                 Color32::RED
             } else {
                 Color32::WHITE
