@@ -132,10 +132,7 @@ impl DiagramEditor {
     }
 }
 
-fn interact_with_component(
-    ui: &mut Ui,
-    comp: &mut TwoTerminalComponent,
-) -> egui::Response {
+fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui::Response {
     let id = Id::new("component body");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
@@ -152,65 +149,83 @@ fn interact_with_component(
         body_resp.request_focus();
     }
 
-    let end_resp = ui.allocate_rect(end_hitbox, Sense::click_and_drag());
-    let begin_resp = ui.allocate_rect(begin_hitbox, Sense::click_and_drag());
-
-    let interact_pos = body_resp.interact_pointer_pos().or(begin_resp.interact_pointer_pos()).or(end_resp.interact_pointer_pos());
-
-    if body_resp.drag_started() || begin_resp.drag_started() || end_resp.drag_started() {
-        if let Some(interact_pos) = interact_pos {
-            ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Pos2>(id) = interact_pos);
-        }
-    }
-
-    let interact_begin_pos = ui.memory_mut(|mem| mem.data.get_temp::<Pos2>(id));
-
-    let interact_delta = interact_begin_pos.zip(interact_pos).map(|(start, stop)| stop - start);
-
     let mut begin_offset = Vec2::ZERO;
     let mut end_offset = Vec2::ZERO;
-    if body_resp.dragged() || body_resp.drag_stopped() {
-        begin_offset = interact_delta.unwrap_or(Vec2::ZERO);
-        end_offset = interact_delta.unwrap_or(Vec2::ZERO);
-    } else if begin_resp.dragged() || begin_resp.drag_stopped() {
-        begin_offset = interact_delta.unwrap_or(Vec2::ZERO);
-    } else if end_resp.dragged() || end_resp.drag_stopped() {
-        end_offset = interact_delta.unwrap_or(Vec2::ZERO);
+
+    if body_resp.has_focus() {
+        let end_resp = ui.allocate_rect(end_hitbox, Sense::click_and_drag());
+        let begin_resp = ui.allocate_rect(begin_hitbox, Sense::click_and_drag());
+
+        let interact_pos = body_resp
+            .interact_pointer_pos()
+            .or(begin_resp.interact_pointer_pos())
+            .or(end_resp.interact_pointer_pos());
+
+        if body_resp.drag_started() || begin_resp.drag_started() || end_resp.drag_started() {
+            if let Some(interact_pos) = interact_pos {
+                ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Pos2>(id) = interact_pos);
+            }
+        }
+
+        let interact_begin_pos = ui.memory_mut(|mem| mem.data.get_temp::<Pos2>(id));
+
+        let interact_delta = interact_begin_pos
+            .zip(interact_pos)
+            .map(|(start, stop)| stop - start);
+
+        if body_resp.dragged() || body_resp.drag_stopped() {
+            begin_offset = interact_delta.unwrap_or(Vec2::ZERO);
+            end_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        } else if begin_resp.dragged() || begin_resp.drag_stopped() {
+            begin_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        } else if end_resp.dragged() || end_resp.drag_stopped() {
+            end_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        }
+
+        if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
+            comp.begin = egui_to_cellpos(begin + begin_offset);
+            comp.end = egui_to_cellpos(end + end_offset);
+        }
+
+        if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
+            ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
+        }
+
+        ui.painter().rect_stroke(
+            begin_hitbox.translate(begin_offset),
+            0.0,
+            Stroke::new(1., Color32::WHITE),
+            egui::StrokeKind::Inside,
+        );
+
+        ui.painter().rect_stroke(
+            end_hitbox.translate(end_offset),
+            0.0,
+            Stroke::new(1., Color32::WHITE),
+            egui::StrokeKind::Inside,
+        );
+
+        ui.painter().line_segment(
+            [begin + begin_offset, end + end_offset],
+            Stroke::new(1., Color32::RED),
+        );
     }
 
-    if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
-        comp.begin = egui_to_cellpos(begin + begin_offset);
-        comp.end = egui_to_cellpos(end + end_offset);
-    }
-
-    if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
-        ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
-    }
 
     let has_focus = body_resp.has_focus();
     ui.painter().rect_stroke(
         body_hitbox.translate((begin_offset + end_offset) / 2.0),
         0.0,
-        Stroke::new(1., if has_focus { Color32::RED } else { Color32::WHITE }),
+        Stroke::new(
+            1.,
+            if has_focus {
+                Color32::RED
+            } else {
+                Color32::WHITE
+            },
+        ),
         egui::StrokeKind::Inside,
     );
-
-    ui.painter().rect_stroke(
-        begin_hitbox.translate(begin_offset),
-        0.0,
-        Stroke::new(1., Color32::WHITE),
-        egui::StrokeKind::Inside,
-    );
-
-    ui.painter().rect_stroke(
-        end_hitbox.translate(end_offset),
-        0.0,
-        Stroke::new(1., Color32::WHITE),
-        egui::StrokeKind::Inside,
-    );
-
-    ui.painter().line_segment([begin + begin_offset, end + end_offset], Stroke::new(1., Color32::RED));
-
 
     body_resp
 }
