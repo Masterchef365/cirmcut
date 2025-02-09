@@ -143,7 +143,7 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
     let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
     let end_hitbox = Rect::from_center_size(end, Vec2::splat(handle_hitbox_size));
 
-    let body_resp = ui.allocate_rect(body_hitbox, Sense::FOCUSABLE | Sense::click_and_drag());
+    let body_resp = ui.interact(body_hitbox, id, Sense::click_and_drag());
 
     if body_resp.clicked() {
         body_resp.request_focus();
@@ -153,8 +153,15 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
     let mut end_offset = Vec2::ZERO;
 
     if body_resp.has_focus() {
-        let end_resp = ui.allocate_rect(end_hitbox, Sense::click_and_drag());
-        let begin_resp = ui.allocate_rect(begin_hitbox, Sense::click_and_drag());
+        let end_resp = ui.interact(end_hitbox, id.with("end"), Sense::click_and_drag());
+        let begin_resp = ui.interact(begin_hitbox, id.with("begin"), Sense::click_and_drag());
+
+        if begin_resp.clicked() {
+            panic!()
+        }
+        if end_resp.clicked() {
+            panic!()
+        }
 
         let interact_pos = body_resp
             .interact_pointer_pos()
@@ -204,13 +211,7 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
             Stroke::new(1., Color32::WHITE),
             egui::StrokeKind::Inside,
         );
-
-        ui.painter().line_segment(
-            [begin + begin_offset, end + end_offset],
-            Stroke::new(1., Color32::RED),
-        );
     }
-
 
     let has_focus = body_resp.has_focus();
     ui.painter().rect_stroke(
@@ -225,6 +226,11 @@ fn interact_with_component(ui: &mut Ui, comp: &mut TwoTerminalComponent) -> egui
             },
         ),
         egui::StrokeKind::Inside,
+    );
+
+    ui.painter().line_segment(
+        [begin + begin_offset, end + end_offset],
+        Stroke::new(1., Color32::GREEN),
     );
 
     body_resp
