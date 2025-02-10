@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use cirmcut_sim::CellPos;
-use egui::{Color32, Id, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 use crate::circuit_widget::{
     cellpos_to_egui, cellpos_to_egui_vec, draw_grid, egui_to_cellpos, egui_to_cellvec,
@@ -31,7 +31,7 @@ impl Default for CircuitApp {
     fn default() -> Self {
         Self {
             editor: DiagramEditor::new(Diagram::default()),
-            view_rect: Rect::ZERO,
+            view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
         }
     }
 }
@@ -115,19 +115,32 @@ impl DiagramEditor {
     }
 
     pub fn edit(&mut self, ui: &mut Ui) {
+        if ui.input(|r| r.key_pressed(Key::Escape)) {
+            self.selected = None;
+        }
+
         let mut body_responses = vec![];
 
         let mut any_changed = false;
         let mut new_selection = None;
         for (idx, comp) in self.components.iter_mut().enumerate() {
-            let ret = interact_with_component_body(ui, comp);
+            let ret = interact_with_component_body(
+                ui,
+                comp,
+                Id::new("body").with(idx),
+                self.selected == Some(idx),
+            );
             if ret.clicked() {
                 new_selection = Some(idx);
             }
             body_responses.push(ret);
         }
 
-        for (idx, (resp, comp)) in body_responses.drain(..).zip(self.components.iter_mut()).enumerate() {
+        for (idx, (resp, comp)) in body_responses
+            .drain(..)
+            .zip(self.components.iter_mut())
+            .enumerate()
+        {
             if interact_with_component(ui, comp, resp, self.selected == Some(idx)) {
                 any_changed = true;
             }
@@ -142,7 +155,8 @@ impl DiagramEditor {
         }
 
         for junction in &self.junctions {
-            ui.painter().circle_filled(cellpos_to_egui(*junction), 5.0, Color32::LIGHT_GRAY);
+            ui.painter()
+                .circle_filled(cellpos_to_egui(*junction), 5.0, Color32::LIGHT_GRAY);
         }
     }
 
@@ -173,16 +187,25 @@ impl DiagramEditor {
     }
 }
 
-fn interact_with_component_body (
+fn interact_with_component_body(
     ui: &mut Ui,
     comp: &mut TwoTerminalComponent,
+    id: Id,
+    selected: bool,
 ) -> egui::Response {
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
     let body_rect = Rect::from_points(&[begin, end]);
+
     let body_hitbox = body_rect.expand(10.0);
 
-    ui.allocate_rect(body_hitbox, Sense::click_and_drag())
+    let sense = if selected {
+        Sense::drag()
+    } else {
+        Sense::click_and_drag()
+    };
+
+    ui.interact(body_hitbox, id, sense)
 }
 
 fn interact_with_component(
@@ -191,7 +214,7 @@ fn interact_with_component(
     body_resp: Response,
     selected: bool,
 ) -> bool {
-    let id = Id::new("component body");
+    let id = Id::new("component");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
     let body_rect = Rect::from_points(&[begin, end]);
@@ -206,7 +229,7 @@ fn interact_with_component(
 
     let debug = false;
 
-    let mut any_changed = false; 
+    let mut any_changed = false;
 
     if selected {
         let end_resp = ui.interact(end_hitbox, id.with("end"), Sense::click_and_drag());
@@ -263,6 +286,18 @@ fn interact_with_component(
                 egui::StrokeKind::Inside,
             );
         }
+
+        ui.painter().circle_stroke(
+            begin + begin_offset,
+            handle_hitbox_size / 2.0,
+            Stroke::new(1., Color32::WHITE),
+        );
+
+        ui.painter().circle_stroke(
+            end + end_offset,
+            handle_hitbox_size / 2.0,
+            Stroke::new(1., Color32::WHITE),
+        );
     }
 
     if debug {
