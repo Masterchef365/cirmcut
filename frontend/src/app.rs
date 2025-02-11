@@ -14,6 +14,7 @@ use crate::circuit_widget::{
 pub struct CircuitApp {
     view_rect: Rect,
     editor: DiagramEditor,
+    debug_draw: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -32,6 +33,7 @@ impl Default for CircuitApp {
         Self {
             editor: DiagramEditor::new(Diagram::default()),
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
+            debug_draw: false,
         }
     }
 }
@@ -65,9 +67,12 @@ impl eframe::App for CircuitApp {
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
-            if ui.button("Add wire").clicked() {
-                self.editor.new_component((), (0, 0));
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Add wire").clicked() {
+                    self.editor.new_component((), (0, 0));
+                }
+                ui.checkbox(&mut self.debug_draw, "Debug draw");
+            });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -75,7 +80,7 @@ impl eframe::App for CircuitApp {
                 let rect = self.view_rect;
                 egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
-                    self.editor.edit(ui);
+                    self.editor.edit(ui, self.debug_draw);
                 });
             });
         });
@@ -114,7 +119,7 @@ impl DiagramEditor {
         self.recompute_junctions();
     }
 
-    pub fn edit(&mut self, ui: &mut Ui) {
+    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) {
         if ui.input(|r| r.key_pressed(Key::Escape)) {
             self.selected = None;
         }
@@ -141,7 +146,8 @@ impl DiagramEditor {
             .zip(self.components.iter_mut())
             .enumerate()
         {
-            if interact_with_component(ui, comp, resp, self.selected == Some(idx)) {
+            if interact_with_component(ui, comp, resp, self.selected == Some(idx), debug_draw)
+            {
                 any_changed = true;
             }
         }
@@ -213,6 +219,7 @@ fn interact_with_component(
     comp: &mut TwoTerminalComponent,
     body_resp: Response,
     selected: bool,
+    debug_draw: bool,
 ) -> bool {
     let id = Id::new("component");
     let begin = cellpos_to_egui(comp.begin);
@@ -226,8 +233,6 @@ fn interact_with_component(
 
     let mut begin_offset = Vec2::ZERO;
     let mut end_offset = Vec2::ZERO;
-
-    let debug = false;
 
     let mut any_changed = false;
 
@@ -271,7 +276,7 @@ fn interact_with_component(
             ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
         }
 
-        if debug {
+        if debug_draw {
             ui.painter().rect_stroke(
                 begin_hitbox.translate(begin_offset),
                 0.0,
@@ -300,7 +305,7 @@ fn interact_with_component(
         );
     }
 
-    if debug {
+    if debug_draw {
         ui.painter().rect_stroke(
             body_hitbox.translate((begin_offset + end_offset) / 2.0),
             0.0,

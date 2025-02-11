@@ -1,0 +1,1 @@
+- [ ] Better selection hitboxes for diagonal components
