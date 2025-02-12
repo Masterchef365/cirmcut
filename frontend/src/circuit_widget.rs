@@ -144,11 +144,11 @@ impl DiagramEditor {
         self.recompute_cached();
     }
 
-    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) {
-        if ui.input(|r| r.key_pressed(Key::Escape)) {
-            self.selected = None;
-        }
+    pub fn reset_selection(&mut self) {
+        self.selected = None;
+    }
 
+    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 

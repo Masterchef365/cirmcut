@@ -1,9 +1,7 @@
 use cirmcut_sim::{ThreeTerminalComponent, TwoTerminalComponent};
 use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
-use crate::circuit_widget::{
-    cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor
-};
+use crate::circuit_widget::{cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
@@ -56,7 +54,8 @@ impl eframe::App for CircuitApp {
                 }
                 if ui.button("Add transistor").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
-                    self.editor.new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
+                    self.editor
+                        .new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
                 }
                 if ui.button("Delete").clicked() {
                     self.editor.delete();
@@ -68,10 +67,14 @@ impl eframe::App for CircuitApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 let rect = self.view_rect;
-                egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
+                let resp = egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
                     self.editor.edit(ui, self.debug_draw);
                 });
+
+                if resp.response.clicked() || ui.input(|r| r.key_pressed(Key::Escape)) {
+                    self.editor.reset_selection();
+                }
             });
         });
     }
