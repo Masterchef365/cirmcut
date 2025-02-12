@@ -510,7 +510,16 @@ impl DiagramWireState {
 }
 
 fn voltage_color(voltage: f32) -> Color32 {
-    todo!()
+    let v = voltage / 5.0;
+    let v = v.clamp(-1.0, 1.0);
+
+    let neutral = Color32::DARK_GRAY;
+
+    if v > 0.0 {
+        neutral.lerp_to_gamma(Color32::GREEN, v)
+    } else {
+        neutral.lerp_to_gamma(Color32::RED, -v)
+    }
 }
 
 fn draw_threeterminal_component(
@@ -526,7 +535,7 @@ fn draw_threeterminal_component(
     let color = if selected {
         Color32::from_rgb(0x00, 0xff, 0xff)
     } else {
-        Color32::GREEN
+        voltage_color(wires[0].voltage)
     };
 
     painter.line_segment([a, ctr], Stroke::new(3., color));
@@ -546,7 +555,7 @@ fn draw_twoterminal_component(
     let color = if selected {
         Color32::from_rgb(0x00, 0xff, 0xff)
     } else {
-        Color32::GREEN
+        voltage_color(wires[0].voltage)
     };
 
     painter.line_segment(pos, Stroke::new(3., color));
