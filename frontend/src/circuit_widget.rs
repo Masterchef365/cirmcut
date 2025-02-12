@@ -11,6 +11,18 @@ pub struct Diagram {
     pub three_terminal: Vec<ThreeTerminalDiagramComponent>,
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct DiagramState {
+    pub two_terminal: Vec<[DiagramWireState; 2]>,
+    pub three_terminal: Vec<[DiagramWireState; 3]>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DiagramWireState {
+    pub voltage: f32,
+    pub current: f32,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub struct TwoTerminalDiagramComponent {
     pub begin: CellPos,
@@ -167,7 +179,7 @@ impl DiagramEditor {
         let mut new_selection = None;
 
         for (idx, comp) in self.diagram.two_terminal.iter_mut().enumerate() {
-            let ret = interact_with_twoinal_body(
+            let ret = interact_with_twoterminal_body(
                 ui,
                 comp,
                 Id::new("body").with(idx),
@@ -180,7 +192,7 @@ impl DiagramEditor {
         }
 
         for (idx, comp) in self.diagram.three_terminal.iter_mut().enumerate() {
-            let ret = interact_with_threeinal_body(
+            let ret = interact_with_threeterminal_body(
                 ui,
                 comp,
                 Id::new("threebody").with(idx),
@@ -197,7 +209,7 @@ impl DiagramEditor {
             .zip(self.diagram.two_terminal.iter_mut())
             .enumerate()
         {
-            if interact_with_twoinal(ui, comp, resp, self.selected == Some((idx, false)), debug_draw) {
+            if interact_with_twoterminal(ui, comp, resp, self.selected == Some((idx, false)), debug_draw) {
                 any_changed = true;
             }
         }
@@ -207,7 +219,7 @@ impl DiagramEditor {
             .zip(self.diagram.three_terminal.iter_mut())
             .enumerate()
         {
-            if interact_with_threeinal(ui, comp, resp, self.selected == Some((idx, true)), debug_draw) {
+            if interact_with_threeterminal(ui, comp, resp, self.selected == Some((idx, true)), debug_draw) {
                 any_changed = true;
             }
         }
@@ -234,7 +246,7 @@ impl DiagramEditor {
 
 // TODO: The following code sucks.
 
-fn interact_with_twoinal_body(
+fn interact_with_twoterminal_body(
     ui: &mut Ui,
     comp: &mut TwoTerminalDiagramComponent,
     id: Id,
@@ -261,14 +273,14 @@ fn interact_with_twoinal_body(
     ui.interact(body_hitbox, id, sense)
 }
 
-fn interact_with_twoinal(
+fn interact_with_twoterminal(
     ui: &mut Ui,
     comp: &mut TwoTerminalDiagramComponent,
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
 ) -> bool {
-    let id = Id::new("twoinal");
+    let id = Id::new("twoterminal");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
 
@@ -380,9 +392,10 @@ fn interact_with_twoinal(
     any_changed
 }
 
-fn interact_with_threeinal_body(
+fn interact_with_threeterminal_body(
     ui: &mut Ui,
     comp: &mut ThreeTerminalDiagramComponent,
+    wires: [DiagramState; 3],
     id: Id,
     selected: bool,
 ) -> egui::Response {
@@ -397,23 +410,17 @@ fn interact_with_threeinal_body(
         body_rect.expand(10.0)
     };
 
-    let sense = if selected {
-        Sense::drag()
-    } else {
-        Sense::click_and_drag()
-    };
-
-    ui.interact(body_hitbox, id, sense)
+    ui.interact(body_hitbox, id, Sense::click_and_drag())
 }
 
-fn interact_with_threeinal(
+fn interact_with_threeterminal(
     ui: &mut Ui,
     comp: &mut ThreeTerminalDiagramComponent,
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
 ) -> bool {
-    let id = Id::new("threeinal");
+    let id = Id::new("threeterminal");
     let a = cellpos_to_egui(comp.a);
     let b = cellpos_to_egui(comp.b);
     let c = cellpos_to_egui(comp.c);
