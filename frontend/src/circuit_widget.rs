@@ -17,10 +17,16 @@ pub struct DiagramState {
     pub three_terminal: Vec<[DiagramWireState; 3]>,
 }
 
-#[derive(Clone, Copy, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DiagramWireState {
     pub voltage: f32,
     pub current: f32,
+}
+
+impl Default for DiagramWireState {
+    fn default() -> Self {
+        Self { voltage: 5.0, current: 1.0 }
+    }
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -512,7 +518,27 @@ impl DiagramWireState {
         } else {
             voltage_color(self.voltage)
         };
+
         painter.line_segment([a, b], Stroke::new(3., color));
+
+        if self.current == 0.0 {
+            return;
+        }
+
+        let spacing = CELL_SIZE / 5.0;
+
+        let n = ((b - a).length() / spacing) as usize;
+
+        let time = painter.ctx().input(|r| r.time * self.current as f64).fract() as f32;
+
+        let rect_size = 5.0;
+
+        for i in 0..n {
+            let t = (i as f32 + time) / n as f32;
+            let pos = a.lerp(b, t);
+            let rect = Rect::from_center_size(pos, Vec2::splat(rect_size));
+            painter.rect_filled(rect, 0.0, Color32::YELLOW);
+        }
     }
 }
 
@@ -577,3 +603,4 @@ impl DiagramState {
         }
     }
 }
+
