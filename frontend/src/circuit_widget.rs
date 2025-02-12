@@ -506,7 +506,14 @@ fn interact_with_threeterminal(
 }
 
 impl DiagramWireState {
-    pub fn draw(&self, a: Pos2, b: Pos2) {}
+    pub fn draw(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+        let color = if selected {
+            Color32::from_rgb(0x00, 0xff, 0xff)
+        } else {
+            voltage_color(self.voltage)
+        };
+        painter.line_segment([a, b], Stroke::new(3., color));
+    }
 }
 
 fn voltage_color(voltage: f32) -> Color32 {
@@ -532,17 +539,9 @@ fn draw_threeterminal_component(
     let [a, b, c] = pos;
     let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
 
-    let color = if selected {
-        Color32::from_rgb(0x00, 0xff, 0xff)
-    } else {
-        voltage_color(wires[0].voltage)
-    };
-
-    painter.line_segment([a, ctr], Stroke::new(3., color));
-
-    painter.line_segment([b, ctr], Stroke::new(3., color));
-
-    painter.line_segment([c, ctr], Stroke::new(3., color));
+    wires[0].draw(painter, a, ctr, selected);
+    wires[1].draw(painter, b, ctr, selected);
+    wires[2].draw(painter, c, ctr, selected);
 }
 
 fn draw_twoterminal_component(
@@ -558,7 +557,8 @@ fn draw_twoterminal_component(
         voltage_color(wires[0].voltage)
     };
 
-    painter.line_segment(pos, Stroke::new(3., color));
+    let [a, b] = pos;
+    wires[0].draw(painter, a, b, selected);
 }
 
 impl DiagramState {
