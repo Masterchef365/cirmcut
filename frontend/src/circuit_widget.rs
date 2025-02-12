@@ -103,7 +103,7 @@ impl DiagramEditor {
             selected: None,
         };
 
-        inst.recompute_junctions();
+        inst.recompute_cached();
 
         inst
     }
@@ -127,7 +127,7 @@ impl DiagramEditor {
         self.diagram
             .three_terminal
             .push(([pos, (x + 1, y), (x + 1, y + 1)], component));
-        self.recompute_junctions();
+        self.recompute_cached();
     }
 
     pub fn new_twoterminal(&mut self, pos: CellPos, component: TwoTerminalComponent) {
@@ -135,7 +135,7 @@ impl DiagramEditor {
         self.diagram
             .two_terminal
             .push(([pos, (x + 1, y)], component));
-        self.recompute_junctions();
+        self.recompute_cached();
     }
 
     pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) {
@@ -218,7 +218,8 @@ impl DiagramEditor {
         }
 
         if any_changed {
-            self.recompute_junctions();
+            self.recompute_cached();
+
         }
 
         for junction in &self.junctions {
@@ -227,8 +228,9 @@ impl DiagramEditor {
         }
     }
 
-    fn recompute_junctions(&mut self) {
+    fn recompute_cached(&mut self) {
         self.junctions = Diagram::from(self.diagram()).junctions();
+        self.state = DiagramState::default_from_diagram(&self.diagram);
     }
 }
 
