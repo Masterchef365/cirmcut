@@ -9,7 +9,7 @@ use crate::circuit_widget::{
 
 //use crate::circuit_widget::{circuit_widget, ComponentButton};
 
-//#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 //#[serde(default)]
 pub struct CircuitApp {
     view_rect: Rect,
@@ -22,6 +22,7 @@ struct Diagram {
     components: Vec<TwoTerminalComponent>,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
 #[derive(Clone, Copy, Debug)]
 struct TwoTerminalComponent {
     begin: CellPos,
@@ -40,21 +41,19 @@ impl Default for CircuitApp {
 
 impl CircuitApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        /*
+
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
-        */
+
         Default::default()
     }
 }
 
 impl eframe::App for CircuitApp {
-    /*
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
     }
-    */
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ctx.request_repaint();
@@ -87,6 +86,7 @@ impl eframe::App for CircuitApp {
     }
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
 struct DiagramEditor {
     components: Vec<TwoTerminalComponent>,
     junctions: Vec<CellPos>,
@@ -203,7 +203,9 @@ fn interact_with_component_body(
     let end = cellpos_to_egui(comp.end);
     let body_rect = Rect::from_points(&[begin, end]);
 
-    let body_hitbox = body_rect.expand(10.0);
+    let horiz = comp.begin.1 == comp.end.1;
+    let vert = comp.begin.0 == comp.end.0;
+    let body_hitbox = if horiz == vert { body_rect } else { body_rect.expand(10.0) };
 
     let sense = if selected {
         Sense::drag()
@@ -224,8 +226,6 @@ fn interact_with_component(
     let id = Id::new("component");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
-    let body_rect = Rect::from_points(&[begin, end]);
-    let body_hitbox = body_rect.expand(10.0);
 
     let handle_hitbox_size = 50.0;
     let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
@@ -307,7 +307,7 @@ fn interact_with_component(
 
     if debug_draw {
         ui.painter().rect_stroke(
-            body_hitbox.translate((begin_offset + end_offset) / 2.0),
+            body_resp.rect.translate((begin_offset + end_offset) / 2.0),
             0.0,
             Stroke::new(
                 1.,
