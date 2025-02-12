@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Id, Key, Painter, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
@@ -276,6 +276,7 @@ fn interact_with_twoterminal_body(
 fn interact_with_twoterminal(
     ui: &mut Ui,
     comp: &mut TwoTerminalDiagramComponent,
+    wires: [DiagramWireState; 2],
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
@@ -384,10 +385,7 @@ fn interact_with_twoterminal(
         Color32::GREEN
     };
 
-    ui.painter().line_segment(
-        [begin + begin_offset, end + end_offset],
-        Stroke::new(3., color),
-    );
+    draw_twoterminal_component(ui.painter(), *comp, wires);
 
     any_changed
 }
@@ -395,7 +393,6 @@ fn interact_with_twoterminal(
 fn interact_with_threeterminal_body(
     ui: &mut Ui,
     comp: &mut ThreeTerminalDiagramComponent,
-    wires: [DiagramState; 3],
     id: Id,
     selected: bool,
 ) -> egui::Response {
@@ -416,6 +413,7 @@ fn interact_with_threeterminal_body(
 fn interact_with_threeterminal(
     ui: &mut Ui,
     comp: &mut ThreeTerminalDiagramComponent,
+    wires: [DiagramWireState; 3],
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
@@ -509,6 +507,8 @@ fn interact_with_threeterminal(
     let b = b + b_offset;
     let c = c + c_offset;
 
+    draw_threeterminal_component(ui.painter(), *comp, wires);
+
     let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
 
     ui.painter().line_segment(
@@ -529,3 +529,29 @@ fn interact_with_threeterminal(
     any_changed
 }
 
+impl DiagramWireState {
+    pub fn draw(&self, a: Pos2, b: Pos2) {
+
+    }
+}
+
+fn voltage_color(voltage: f32) -> Color32 {
+    todo!()
+}
+
+fn draw_threeterminal_component(
+    painter: &Painter,
+    three: ThreeTerminalDiagramComponent,
+    wires: [DiagramWireState; 3],
+) {
+
+}
+
+
+fn draw_twoterminal_component(
+    painter: &Painter,
+    three: TwoTerminalDiagramComponent,
+    wires: [DiagramWireState; 2],
+) {
+
+}
