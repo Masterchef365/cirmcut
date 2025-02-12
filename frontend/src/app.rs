@@ -80,6 +80,9 @@ impl eframe::App for CircuitApp {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_threeterminal(pos);
                 }
+                if ui.button("Delete").clicked() {
+                    self.editor.delete();
+                }
                 ui.checkbox(&mut self.debug_draw, "Debug draw");
             });
         });
@@ -118,6 +121,16 @@ impl DiagramEditor {
 
     pub fn diagram(&self) -> Diagram {
         self.diagram.clone()
+    }
+
+    pub fn delete(&mut self) {
+        if let Some((idx, three)) = self.selected.take() {
+            if three {
+                self.diagram.three_terminal.remove(idx);
+            } else {
+                self.diagram.two_terminal.remove(idx);
+            }
+        }
     }
 
     pub fn new_threeterminal(&mut self, pos: CellPos) {
@@ -428,6 +441,7 @@ fn interact_with_threeterminal(
     let handle_hitbox_size = 50.0;
     let a_hitbox = Rect::from_center_size(a, Vec2::splat(handle_hitbox_size));
     let b_hitbox = Rect::from_center_size(b, Vec2::splat(handle_hitbox_size));
+    let c_hitbox = Rect::from_center_size(c, Vec2::splat(handle_hitbox_size));
 
     let mut a_offset = Vec2::ZERO;
     let mut b_offset = Vec2::ZERO;
@@ -438,7 +452,7 @@ fn interact_with_threeterminal(
     if selected {
         let a_resp = ui.interact(a_hitbox, id.with("a"), Sense::click_and_drag());
         let b_resp = ui.interact(b_hitbox, id.with("b"), Sense::click_and_drag());
-        let c_resp = ui.interact(b_hitbox, id.with("c"), Sense::click_and_drag());
+        let c_resp = ui.interact(c_hitbox, id.with("c"), Sense::click_and_drag());
 
         let interact_pos = body_resp
             .interact_pointer_pos()
