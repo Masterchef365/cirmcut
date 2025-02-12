@@ -568,6 +568,11 @@ impl Diagram {
                 *junctions.entry(pos).or_default() += 1;
             }
         }
+        for comp in &self.three_terminal {
+            for pos in [comp.a, comp.b, comp.c] {
+                *junctions.entry(pos).or_default() += 1;
+            }
+        }
         junctions
             .into_iter()
             .filter_map(|(pos, count)| (count > 1).then_some(pos))
