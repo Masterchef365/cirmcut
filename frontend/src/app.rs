@@ -1,39 +1,15 @@
-use std::collections::{HashMap, HashSet};
-
-use cirmcut_sim::CellPos;
+use cirmcut_sim::{CellPos, Diagram, ThreeTerminalComponent, TwoTerminalComponent};
 use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 use crate::circuit_widget::{
-    cellpos_to_egui, cellpos_to_egui_vec, draw_grid, egui_to_cellpos, egui_to_cellvec,
+    cellpos_to_egui, draw_grid, egui_to_cellpos,
 };
 
-//use crate::circuit_widget::{circuit_widget, ComponentButton};
-
 #[derive(serde::Deserialize, serde::Serialize)]
-//#[serde(default)]
 pub struct CircuitApp {
     view_rect: Rect,
     editor: DiagramEditor,
     debug_draw: bool,
-}
-
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
-struct Diagram {
-    two_terminal: Vec<TwoTerminalComponent>,
-    three_terminal: Vec<ThreeTerminalComponent>,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
-struct TwoTerminalComponent {
-    begin: CellPos,
-    end: CellPos,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
-struct ThreeTerminalComponent {
-    a: CellPos,
-    b: CellPos,
-    c: CellPos,
 }
 
 impl Default for CircuitApp {
@@ -227,30 +203,6 @@ impl DiagramEditor {
     fn recompute_junctions(&mut self) {
         self.junctions = Diagram::from(self.diagram()).junctions();
     }
-
-    /*
-    fn nearest_component_idx(&self, cursor: Pos2) -> Option<usize> {
-        let mut closest_dist_sq = 100_f32.powi(2);
-
-        let mut closest_idx = None;
-        for (idx, comp) in self.diagram.two_terminal.iter().enumerate() {
-            let begin = cellpos_to_egui(comp.begin);
-            let end = cellpos_to_egui(comp.end);
-
-            // Vector projection
-            let cursor_off = cursor - begin;
-            let n = (end - begin).normalized();
-            let t = n.dot(cursor_off);
-            let dist_sq = (n * t - cursor_off).length_sq();
-            if dist_sq < closest_dist_sq {
-                closest_dist_sq = dist_sq;
-                closest_idx = Some(idx);
-            }
-        }
-
-        closest_idx
-    }
-    */
 }
 
 fn interact_with_twoterminal_body(
@@ -491,24 +443,6 @@ fn interact_with_threeterminal(
             ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
         }
 
-        /*
-        if debug_draw {
-            ui.painter().rect_stroke(
-                begin_hitbox.translate(begin_offset),
-                0.0,
-                Stroke::new(1., Color32::WHITE),
-                egui::StrokeKind::Inside,
-            );
-
-            ui.painter().rect_stroke(
-                end_hitbox.translate(end_offset),
-                0.0,
-                Stroke::new(1., Color32::WHITE),
-                egui::StrokeKind::Inside,
-            );
-        }
-        */
-
         ui.painter().circle_stroke(
             a + a_offset,
             handle_hitbox_size / 2.0,
@@ -559,22 +493,3 @@ fn interact_with_threeterminal(
     any_changed
 }
 
-impl Diagram {
-    pub fn junctions(&self) -> Vec<CellPos> {
-        let mut junctions = HashMap::<CellPos, u32>::new();
-        for comp in &self.two_terminal {
-            for pos in [comp.begin, comp.end] {
-                *junctions.entry(pos).or_default() += 1;
-            }
-        }
-        for comp in &self.three_terminal {
-            for pos in [comp.a, comp.b, comp.c] {
-                *junctions.entry(pos).or_default() += 1;
-            }
-        }
-        junctions
-            .into_iter()
-            .filter_map(|(pos, count)| (count > 1).then_some(pos))
-            .collect()
-    }
-}

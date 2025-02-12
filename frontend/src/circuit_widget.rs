@@ -57,33 +57,3 @@ pub fn draw_grid(
     }
 
 }
-
-/*
-pub struct ComponentButton {
-    cell: DiagramCell,
-    state: ComponentState,
-    size: f32,
-}
-
-impl ComponentButton {
-    pub fn new(cell: DiagramCell, state: ComponentState, size: f32) -> Self {
-        Self { cell, state, size }
-    }
-}
-
-impl egui::Widget for ComponentButton {
-    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let resp = ui.allocate_response(Vec2::splat(self.size), Sense::click_and_drag());
-
-        draw_component(
-            resp.rect.min,
-            self.size,
-            &self.cell,
-            &self.state,
-            ui.painter(),
-        );
-
-        resp
-    }
-}
-*/

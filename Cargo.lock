@@ -657,6 +657,9 @@ dependencies = [
 [[package]]
 name = "cirmcut-sim"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "clipboard-win"
