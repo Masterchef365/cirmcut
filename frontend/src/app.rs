@@ -204,7 +204,6 @@ impl DiagramEditor {
             .zip(self.diagram.three_terminal.iter_mut())
             .enumerate()
         {
-            println!("threeterminal {}", idx);
             if interact_with_threeterminal(ui, comp, resp, self.selected == Some((idx, true)), debug_draw) {
                 any_changed = true;
             }
