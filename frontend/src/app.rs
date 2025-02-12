@@ -2,7 +2,7 @@ use cirmcut_sim::{ThreeTerminalComponent, TwoTerminalComponent};
 use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
 
 use crate::circuit_widget::{
-    cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor, TwoTerminalDiagramComponent
+    cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]

@@ -7,39 +7,25 @@ pub const CELL_SIZE: f32 = 100.0;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct Diagram {
-    pub two_terminal: Vec<TwoTerminalDiagramComponent>,
-    pub three_terminal: Vec<ThreeTerminalDiagramComponent>,
+    pub two_terminal: Vec<([CellPos; 2], TwoTerminalComponent)>,
+    pub three_terminal: Vec<([CellPos; 3], ThreeTerminalComponent)>,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct DiagramState {
     pub two_terminal: Vec<[DiagramWireState; 2]>,
     pub three_terminal: Vec<[DiagramWireState; 3]>,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct DiagramWireState {
     pub voltage: f32,
     pub current: f32,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
-pub struct TwoTerminalDiagramComponent {
-    pub begin: CellPos,
-    pub end: CellPos,
-    pub component: TwoTerminalComponent,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
-pub struct ThreeTerminalDiagramComponent {
-    pub a: CellPos,
-    pub b: CellPos,
-    pub c: CellPos,
-    pub component: ThreeTerminalComponent,
-}
-
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
+    state: DiagramState,
     diagram: Diagram,
     junctions: Vec<CellPos>,
     selected: Option<(usize, bool)>,
@@ -61,24 +47,19 @@ pub fn egui_to_cellpos(pos: Pos2) -> CellPos {
 }
 
 pub fn egui_to_cellvec(v: Vec2) -> CellPos {
-    (
-        (v.x / CELL_SIZE) as i32,
-        (v.y / CELL_SIZE) as i32,
-    )
+    ((v.x / CELL_SIZE) as i32, (v.y / CELL_SIZE) as i32)
 }
-
-
 
 impl Diagram {
     pub fn junctions(&self) -> Vec<CellPos> {
         let mut junctions = HashMap::<CellPos, u32>::new();
-        for comp in &self.two_terminal {
-            for pos in [comp.begin, comp.end] {
+        for (positions, _) in &self.two_terminal {
+            for &pos in positions {
                 *junctions.entry(pos).or_default() += 1;
             }
         }
-        for comp in &self.three_terminal {
-            for pos in [comp.a, comp.b, comp.c] {
+        for (positions, _) in &self.three_terminal {
+            for &pos in positions {
                 *junctions.entry(pos).or_default() += 1;
             }
         }
@@ -89,12 +70,7 @@ impl Diagram {
     }
 }
 
-pub fn draw_grid(
-    ui: &mut egui::Ui,
-    rect: Rect,
-    radius: f32,
-    color: Color32,
-) {
+pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {
     let (min_x, min_y) = egui_to_cellpos(rect.min.floor());
     let (max_x, max_y) = egui_to_cellpos(rect.max.ceil());
 
@@ -116,12 +92,12 @@ pub fn draw_grid(
     if n > MAX_N {
         eprintln!("WARNING: zoomed out too far!");
     }
-
 }
 
 impl DiagramEditor {
     pub fn new(diagram: Diagram) -> Self {
         let mut inst = Self {
+            state: DiagramState::default_from_diagram(&diagram),
             junctions: vec![],
             diagram,
             selected: None,
@@ -148,22 +124,17 @@ impl DiagramEditor {
 
     pub fn new_threeterminal(&mut self, pos: CellPos, component: ThreeTerminalComponent) {
         let (x, y) = pos;
-        self.diagram.three_terminal.push(ThreeTerminalDiagramComponent {
-            a: pos,
-            b: (x + 1, y),
-            c: (x + 1, y + 1),
-            component,
-        });
+        self.diagram
+            .three_terminal
+            .push(([pos, (x + 1, y), (x + 1, y + 1)], component));
         self.recompute_junctions();
     }
 
     pub fn new_twoterminal(&mut self, pos: CellPos, component: TwoTerminalComponent) {
         let (x, y) = pos;
-        self.diagram.two_terminal.push(TwoTerminalDiagramComponent {
-            begin: pos,
-            end: (x + 1, y),
-            component,
-        });
+        self.diagram
+            .two_terminal
+            .push(([pos, (x + 1, y)], component));
         self.recompute_junctions();
     }
 
@@ -178,10 +149,10 @@ impl DiagramEditor {
         let mut any_changed = false;
         let mut new_selection = None;
 
-        for (idx, comp) in self.diagram.two_terminal.iter_mut().enumerate() {
+        for (idx, (pos, comp)) in self.diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
                 ui,
-                comp,
+                *pos,
                 Id::new("body").with(idx),
                 self.selected == Some((idx, false)),
             );
@@ -191,10 +162,10 @@ impl DiagramEditor {
             two_body_responses.push(ret);
         }
 
-        for (idx, comp) in self.diagram.three_terminal.iter_mut().enumerate() {
+        for (idx, (pos, comp)) in self.diagram.three_terminal.iter_mut().enumerate() {
             let ret = interact_with_threeterminal_body(
                 ui,
-                comp,
+                *pos,
                 Id::new("threebody").with(idx),
                 self.selected == Some((idx, true)),
             );
@@ -204,26 +175,43 @@ impl DiagramEditor {
             three_body_responses.push(ret);
         }
 
-        for (idx, (resp, comp)) in two_body_responses
+        for (idx, ((resp, (pos, comp)), wires)) in two_body_responses
             .drain(..)
             .zip(self.diagram.two_terminal.iter_mut())
+            .zip(self.state.two_terminal.iter())
             .enumerate()
         {
-            if interact_with_twoterminal(ui, comp, resp, self.selected == Some((idx, false)), debug_draw) {
+            if interact_with_twoterminal(
+                ui,
+                pos,
+                *comp,
+                *wires,
+                resp,
+                self.selected == Some((idx, false)),
+                debug_draw,
+            ) {
                 any_changed = true;
             }
         }
 
-        for (idx, (resp, comp)) in three_body_responses
+        for (idx, ((resp, (pos, comp)), wires)) in three_body_responses
             .drain(..)
             .zip(self.diagram.three_terminal.iter_mut())
+            .zip(self.state.three_terminal.iter())
             .enumerate()
         {
-            if interact_with_threeterminal(ui, comp, resp, self.selected == Some((idx, true)), debug_draw) {
+            if interact_with_threeterminal(
+                ui,
+                pos,
+                *comp,
+                *wires,
+                resp,
+                self.selected == Some((idx, true)),
+                debug_draw,
+            ) {
                 any_changed = true;
             }
         }
-
 
         if let Some(sel) = new_selection {
             self.selected = Some(sel);
@@ -248,16 +236,16 @@ impl DiagramEditor {
 
 fn interact_with_twoterminal_body(
     ui: &mut Ui,
-    comp: &mut TwoTerminalDiagramComponent,
+    pos: [CellPos; 2],
     id: Id,
     selected: bool,
 ) -> egui::Response {
-    let begin = cellpos_to_egui(comp.begin);
-    let end = cellpos_to_egui(comp.end);
+    let begin = cellpos_to_egui(pos[0]);
+    let end = cellpos_to_egui(pos[1]);
     let body_rect = Rect::from_points(&[begin, end]);
 
-    let horiz = comp.begin.1 == comp.end.1;
-    let vert = comp.begin.0 == comp.end.0;
+    let horiz = pos[0].1 == pos[1].1;
+    let vert = pos[0].0 == pos[1].0;
     let body_hitbox = if horiz == vert {
         body_rect
     } else {
@@ -275,15 +263,16 @@ fn interact_with_twoterminal_body(
 
 fn interact_with_twoterminal(
     ui: &mut Ui,
-    comp: &mut TwoTerminalDiagramComponent,
+    pos: &mut [CellPos; 2],
+    component: TwoTerminalComponent,
     wires: [DiagramWireState; 2],
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
 ) -> bool {
     let id = Id::new("twoterminal");
-    let begin = cellpos_to_egui(comp.begin);
-    let end = cellpos_to_egui(comp.end);
+    let begin = cellpos_to_egui(pos[0]);
+    let end = cellpos_to_egui(pos[1]);
 
     let handle_hitbox_size = 50.0;
     let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
@@ -325,8 +314,8 @@ fn interact_with_twoterminal(
         }
 
         if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
-            comp.begin = egui_to_cellpos(begin + begin_offset);
-            comp.end = egui_to_cellpos(end + end_offset);
+            pos[0] = egui_to_cellpos(begin + begin_offset);
+            pos[1] = egui_to_cellpos(end + end_offset);
             any_changed = true;
         }
 
@@ -379,26 +368,26 @@ fn interact_with_twoterminal(
         );
     }
 
-    let color = if selected {
-        Color32::from_rgb(0x00, 0xff, 0xff)
-    } else {
-        Color32::GREEN
-    };
-
-    draw_twoterminal_component(ui.painter(), *comp, wires);
+    draw_twoterminal_component(
+        ui.painter(),
+        [begin + begin_offset, end + end_offset],
+        wires,
+        component,
+        selected,
+    );
 
     any_changed
 }
 
 fn interact_with_threeterminal_body(
     ui: &mut Ui,
-    comp: &mut ThreeTerminalDiagramComponent,
+    pos: [CellPos; 3],
     id: Id,
     selected: bool,
 ) -> egui::Response {
-    let a = cellpos_to_egui(comp.a);
-    let b = cellpos_to_egui(comp.b);
-    let c = cellpos_to_egui(comp.c);
+    let a = cellpos_to_egui(pos[0]);
+    let b = cellpos_to_egui(pos[1]);
+    let c = cellpos_to_egui(pos[2]);
     let body_rect = Rect::from_points(&[a, b, c]);
 
     let body_hitbox = if body_rect.area() == 0.0 {
@@ -412,16 +401,17 @@ fn interact_with_threeterminal_body(
 
 fn interact_with_threeterminal(
     ui: &mut Ui,
-    comp: &mut ThreeTerminalDiagramComponent,
+    pos: &mut [CellPos; 3],
+    component: ThreeTerminalComponent,
     wires: [DiagramWireState; 3],
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
 ) -> bool {
     let id = Id::new("threeterminal");
-    let a = cellpos_to_egui(comp.a);
-    let b = cellpos_to_egui(comp.b);
-    let c = cellpos_to_egui(comp.c);
+    let a = cellpos_to_egui(pos[0]);
+    let b = cellpos_to_egui(pos[1]);
+    let c = cellpos_to_egui(pos[2]);
 
     let handle_hitbox_size = 50.0;
     let a_hitbox = Rect::from_center_size(a, Vec2::splat(handle_hitbox_size));
@@ -445,7 +435,11 @@ fn interact_with_threeterminal(
             .or(b_resp.interact_pointer_pos())
             .or(c_resp.interact_pointer_pos());
 
-        if body_resp.drag_started() || a_resp.drag_started() || b_resp.drag_started() || c_resp.drag_started()  {
+        if body_resp.drag_started()
+            || a_resp.drag_started()
+            || b_resp.drag_started()
+            || c_resp.drag_started()
+        {
             if let Some(interact_pos) = interact_pos {
                 ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Pos2>(id) = interact_pos);
             }
@@ -469,10 +463,14 @@ fn interact_with_threeterminal(
             c_offset = interact_delta.unwrap_or(Vec2::ZERO);
         }
 
-        if body_resp.drag_stopped() || a_resp.drag_stopped() || b_resp.drag_stopped() || c_resp.drag_stopped() {
-            comp.a = egui_to_cellpos(a + a_offset);
-            comp.b = egui_to_cellpos(b + b_offset);
-            comp.c = egui_to_cellpos(c + c_offset);
+        if body_resp.drag_stopped()
+            || a_resp.drag_stopped()
+            || b_resp.drag_stopped()
+            || c_resp.drag_stopped()
+        {
+            pos[0] = egui_to_cellpos(a + a_offset);
+            pos[1] = egui_to_cellpos(b + b_offset);
+            pos[2] = egui_to_cellpos(c + c_offset);
             any_changed = true;
             ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
         }
@@ -482,7 +480,6 @@ fn interact_with_threeterminal(
             handle_hitbox_size / 2.0,
             Stroke::new(1., Color32::WHITE),
         );
-
 
         ui.painter().circle_stroke(
             b + b_offset,
@@ -497,42 +494,17 @@ fn interact_with_threeterminal(
         );
     }
 
-    let color = if selected {
-        Color32::from_rgb(0x00, 0xff, 0xff)
-    } else {
-        Color32::GREEN
-    };
-
     let a = a + a_offset;
     let b = b + b_offset;
     let c = c + c_offset;
 
-    draw_threeterminal_component(ui.painter(), *comp, wires);
-
-    let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
-
-    ui.painter().line_segment(
-        [a, ctr],
-        Stroke::new(3., color),
-    );
-
-    ui.painter().line_segment(
-        [b, ctr],
-        Stroke::new(3., color),
-    );
-
-    ui.painter().line_segment(
-        [c, ctr],
-        Stroke::new(3., color),
-    );
+    draw_threeterminal_component(ui.painter(), [a, b, c], wires, component, selected);
 
     any_changed
 }
 
 impl DiagramWireState {
-    pub fn draw(&self, a: Pos2, b: Pos2) {
-
-    }
+    pub fn draw(&self, a: Pos2, b: Pos2) {}
 }
 
 fn voltage_color(voltage: f32) -> Color32 {
@@ -541,17 +513,56 @@ fn voltage_color(voltage: f32) -> Color32 {
 
 fn draw_threeterminal_component(
     painter: &Painter,
-    three: ThreeTerminalDiagramComponent,
+    pos: [Pos2; 3],
     wires: [DiagramWireState; 3],
+    component: ThreeTerminalComponent,
+    selected: bool,
 ) {
+    let [a, b, c] = pos;
+    let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
 
+    let color = if selected {
+        Color32::from_rgb(0x00, 0xff, 0xff)
+    } else {
+        Color32::GREEN
+    };
+
+    painter.line_segment([a, ctr], Stroke::new(3., color));
+
+    painter.line_segment([b, ctr], Stroke::new(3., color));
+
+    painter.line_segment([c, ctr], Stroke::new(3., color));
 }
-
 
 fn draw_twoterminal_component(
     painter: &Painter,
-    three: TwoTerminalDiagramComponent,
+    pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
+    component: TwoTerminalComponent,
+    selected: bool,
 ) {
+    let color = if selected {
+        Color32::from_rgb(0x00, 0xff, 0xff)
+    } else {
+        Color32::GREEN
+    };
 
+    painter.line_segment(pos, Stroke::new(3., color));
+}
+
+impl DiagramState {
+    fn default_from_diagram(diagram: &Diagram) -> Self {
+        Self {
+            two_terminal: diagram
+                .two_terminal
+                .iter()
+                .map(|_| [DiagramWireState::default(); 2])
+                .collect(),
+            three_terminal: diagram
+                .three_terminal
+                .iter()
+                .map(|_| [DiagramWireState::default(); 3])
+                .collect(),
+        }
+    }
 }
