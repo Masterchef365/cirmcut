@@ -3,6 +3,8 @@ use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
 
+use crate::components::{draw_transistor, draw_wire};
+
 pub const CELL_SIZE: f32 = 100.0;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
@@ -562,12 +564,10 @@ fn draw_threeterminal_component(
     component: ThreeTerminalComponent,
     selected: bool,
 ) {
-    let [a, b, c] = pos;
-    let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
-
-    wires[0].draw(painter, a, ctr, selected);
-    wires[1].draw(painter, b, ctr, selected);
-    wires[2].draw(painter, c, ctr, selected);
+    match component {
+        ThreeTerminalComponent::PTransistor(_) => draw_transistor(painter, pos, wires, selected, true),
+        ThreeTerminalComponent::NTransistor(_) => draw_transistor(painter, pos, wires, selected, false),
+    }
 }
 
 fn draw_twoterminal_component(
@@ -577,14 +577,9 @@ fn draw_twoterminal_component(
     component: TwoTerminalComponent,
     selected: bool,
 ) {
-    let color = if selected {
-        Color32::from_rgb(0x00, 0xff, 0xff)
-    } else {
-        voltage_color(wires[0].voltage)
-    };
-
-    let [a, b] = pos;
-    wires[0].draw(painter, a, b, selected);
+    match component {
+        TwoTerminalComponent::Wire => draw_wire(painter, pos, wires, selected),
+    }
 }
 
 impl DiagramState {

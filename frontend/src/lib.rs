@@ -4,3 +4,4 @@ mod app;
 pub use app::CircuitApp;
 //mod camera;
 mod circuit_widget;
+mod components;
