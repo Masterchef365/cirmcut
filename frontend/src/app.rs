@@ -17,16 +17,23 @@ pub struct CircuitApp {
     debug_draw: bool,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 struct Diagram {
-    components: Vec<TwoTerminalComponent>,
+    two_terminal: Vec<TwoTerminalComponent>,
+    three_terminal: Vec<ThreeTerminalComponent>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Clone, Copy, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 struct TwoTerminalComponent {
     begin: CellPos,
     end: CellPos,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
+struct ThreeTerminalComponent {
+    a: CellPos,
+    b: CellPos,
+    c: CellPos,
 }
 
 impl Default for CircuitApp {
@@ -41,7 +48,6 @@ impl Default for CircuitApp {
 
 impl CircuitApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-
         if let Some(storage) = cc.storage {
             return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
         }
@@ -56,7 +62,6 @@ impl eframe::App for CircuitApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        ctx.request_repaint();
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -68,7 +73,12 @@ impl eframe::App for CircuitApp {
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("Add wire").clicked() {
-                    self.editor.new_component((), (0, 0));
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor.new_twoterminal(pos);
+                }
+                if ui.button("Add transistor").clicked() {
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor.new_threeterminal(pos);
                 }
                 ui.checkbox(&mut self.debug_draw, "Debug draw");
             });
@@ -88,16 +98,16 @@ impl eframe::App for CircuitApp {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct DiagramEditor {
-    components: Vec<TwoTerminalComponent>,
+    diagram: Diagram,
     junctions: Vec<CellPos>,
-    selected: Option<usize>,
+    selected: Option<(usize, bool)>,
 }
 
 impl DiagramEditor {
     pub fn new(diagram: Diagram) -> Self {
         let mut inst = Self {
             junctions: vec![],
-            components: diagram.components,
+            diagram,
             selected: None,
         };
 
@@ -107,12 +117,22 @@ impl DiagramEditor {
     }
 
     pub fn diagram(&self) -> Diagram {
-        Diagram::new(self.components.clone())
+        self.diagram.clone()
     }
 
-    pub fn new_component(&mut self, component: (), pos: CellPos) {
+    pub fn new_threeterminal(&mut self, pos: CellPos) {
         let (x, y) = pos;
-        self.components.push(TwoTerminalComponent {
+        self.diagram.three_terminal.push(ThreeTerminalComponent {
+            a: pos,
+            b: (x + 1, y),
+            c: (x + 1, y + 1),
+        });
+        self.recompute_junctions();
+    }
+
+    pub fn new_twoterminal(&mut self, pos: CellPos) {
+        let (x, y) = pos;
+        self.diagram.two_terminal.push(TwoTerminalComponent {
             begin: pos,
             end: (x + 1, y),
         });
@@ -124,33 +144,59 @@ impl DiagramEditor {
             self.selected = None;
         }
 
-        let mut body_responses = vec![];
+        let mut two_body_responses = vec![];
+        let mut three_body_responses = vec![];
 
         let mut any_changed = false;
         let mut new_selection = None;
-        for (idx, comp) in self.components.iter_mut().enumerate() {
-            let ret = interact_with_component_body(
+
+        for (idx, comp) in self.diagram.two_terminal.iter_mut().enumerate() {
+            let ret = interact_with_twoterminal_body(
                 ui,
                 comp,
                 Id::new("body").with(idx),
-                self.selected == Some(idx),
+                self.selected == Some((idx, false)),
             );
             if ret.clicked() {
-                new_selection = Some(idx);
+                new_selection = Some((idx, false));
             }
-            body_responses.push(ret);
+            two_body_responses.push(ret);
         }
 
-        for (idx, (resp, comp)) in body_responses
+        for (idx, comp) in self.diagram.three_terminal.iter_mut().enumerate() {
+            let ret = interact_with_threeterminal_body(
+                ui,
+                comp,
+                Id::new("threebody").with(idx),
+                self.selected == Some((idx, true)),
+            );
+            if ret.clicked() {
+                new_selection = Some((idx, true));
+            }
+            three_body_responses.push(ret);
+        }
+
+        for (idx, (resp, comp)) in two_body_responses
             .drain(..)
-            .zip(self.components.iter_mut())
+            .zip(self.diagram.two_terminal.iter_mut())
             .enumerate()
         {
-            if interact_with_component(ui, comp, resp, self.selected == Some(idx), debug_draw)
-            {
+            if interact_with_twoterminal(ui, comp, resp, self.selected == Some((idx, false)), debug_draw) {
                 any_changed = true;
             }
         }
+
+        for (idx, (resp, comp)) in three_body_responses
+            .drain(..)
+            .zip(self.diagram.three_terminal.iter_mut())
+            .enumerate()
+        {
+            println!("threeterminal {}", idx);
+            if interact_with_threeterminal(ui, comp, resp, self.selected == Some((idx, true)), debug_draw) {
+                any_changed = true;
+            }
+        }
+
 
         if let Some(sel) = new_selection {
             self.selected = Some(sel);
@@ -170,11 +216,12 @@ impl DiagramEditor {
         self.junctions = Diagram::from(self.diagram()).junctions();
     }
 
+    /*
     fn nearest_component_idx(&self, cursor: Pos2) -> Option<usize> {
         let mut closest_dist_sq = 100_f32.powi(2);
 
         let mut closest_idx = None;
-        for (idx, comp) in self.components.iter().enumerate() {
+        for (idx, comp) in self.diagram.two_terminal.iter().enumerate() {
             let begin = cellpos_to_egui(comp.begin);
             let end = cellpos_to_egui(comp.end);
 
@@ -191,9 +238,10 @@ impl DiagramEditor {
 
         closest_idx
     }
+    */
 }
 
-fn interact_with_component_body(
+fn interact_with_twoterminal_body(
     ui: &mut Ui,
     comp: &mut TwoTerminalComponent,
     id: Id,
@@ -205,7 +253,11 @@ fn interact_with_component_body(
 
     let horiz = comp.begin.1 == comp.end.1;
     let vert = comp.begin.0 == comp.end.0;
-    let body_hitbox = if horiz == vert { body_rect } else { body_rect.expand(10.0) };
+    let body_hitbox = if horiz == vert {
+        body_rect
+    } else {
+        body_rect.expand(10.0)
+    };
 
     let sense = if selected {
         Sense::drag()
@@ -216,14 +268,14 @@ fn interact_with_component_body(
     ui.interact(body_hitbox, id, sense)
 }
 
-fn interact_with_component(
+fn interact_with_twoterminal(
     ui: &mut Ui,
     comp: &mut TwoTerminalComponent,
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
 ) -> bool {
-    let id = Id::new("component");
+    let id = Id::new("twoterminal");
     let begin = cellpos_to_egui(comp.begin);
     let end = cellpos_to_egui(comp.end);
 
@@ -335,14 +387,169 @@ fn interact_with_component(
     any_changed
 }
 
-impl Diagram {
-    pub fn new(components: Vec<TwoTerminalComponent>) -> Self {
-        Self { components }
+fn interact_with_threeterminal_body(
+    ui: &mut Ui,
+    comp: &mut ThreeTerminalComponent,
+    id: Id,
+    selected: bool,
+) -> egui::Response {
+    let a = cellpos_to_egui(comp.a);
+    let b = cellpos_to_egui(comp.b);
+    let c = cellpos_to_egui(comp.c);
+    let body_rect = Rect::from_points(&[a, b, c]);
+
+    let body_hitbox = if body_rect.area() == 0.0 {
+        body_rect
+    } else {
+        body_rect.expand(10.0)
+    };
+
+    let sense = if selected {
+        Sense::drag()
+    } else {
+        Sense::click_and_drag()
+    };
+
+    ui.interact(body_hitbox, id, sense)
+}
+
+fn interact_with_threeterminal(
+    ui: &mut Ui,
+    comp: &mut ThreeTerminalComponent,
+    body_resp: Response,
+    selected: bool,
+    debug_draw: bool,
+) -> bool {
+    let id = Id::new("threeterminal");
+    let a = cellpos_to_egui(comp.a);
+    let b = cellpos_to_egui(comp.b);
+    let c = cellpos_to_egui(comp.c);
+
+    let handle_hitbox_size = 50.0;
+    let a_hitbox = Rect::from_center_size(a, Vec2::splat(handle_hitbox_size));
+    let b_hitbox = Rect::from_center_size(b, Vec2::splat(handle_hitbox_size));
+
+    let mut a_offset = Vec2::ZERO;
+    let mut b_offset = Vec2::ZERO;
+    let mut c_offset = Vec2::ZERO;
+
+    let mut any_changed = false;
+
+    if selected {
+        let a_resp = ui.interact(a_hitbox, id.with("a"), Sense::click_and_drag());
+        let b_resp = ui.interact(b_hitbox, id.with("b"), Sense::click_and_drag());
+        let c_resp = ui.interact(b_hitbox, id.with("c"), Sense::click_and_drag());
+
+        let interact_pos = body_resp
+            .interact_pointer_pos()
+            .or(a_resp.interact_pointer_pos())
+            .or(b_resp.interact_pointer_pos())
+            .or(c_resp.interact_pointer_pos());
+
+        if body_resp.drag_started() || a_resp.drag_started() || b_resp.drag_started() || c_resp.drag_started()  {
+            if let Some(interact_pos) = interact_pos {
+                ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Pos2>(id) = interact_pos);
+            }
+        }
+
+        let interact_begin_pos = ui.memory_mut(|mem| mem.data.get_temp::<Pos2>(id));
+
+        let interact_delta = interact_begin_pos
+            .zip(interact_pos)
+            .map(|(start, stop)| stop - start);
+
+        if body_resp.dragged() || body_resp.drag_stopped() {
+            a_offset = interact_delta.unwrap_or(Vec2::ZERO);
+            b_offset = interact_delta.unwrap_or(Vec2::ZERO);
+            c_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        } else if a_resp.dragged() || a_resp.drag_stopped() {
+            a_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        } else if b_resp.dragged() || b_resp.drag_stopped() {
+            b_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        } else if c_resp.dragged() || c_resp.drag_stopped() {
+            c_offset = interact_delta.unwrap_or(Vec2::ZERO);
+        }
+
+        if body_resp.drag_stopped() || a_resp.drag_stopped() || b_resp.drag_stopped() || c_resp.drag_stopped() {
+            comp.a = egui_to_cellpos(a + a_offset);
+            comp.b = egui_to_cellpos(b + b_offset);
+            comp.c = egui_to_cellpos(c + c_offset);
+            any_changed = true;
+            ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
+        }
+
+        /*
+        if debug_draw {
+            ui.painter().rect_stroke(
+                begin_hitbox.translate(begin_offset),
+                0.0,
+                Stroke::new(1., Color32::WHITE),
+                egui::StrokeKind::Inside,
+            );
+
+            ui.painter().rect_stroke(
+                end_hitbox.translate(end_offset),
+                0.0,
+                Stroke::new(1., Color32::WHITE),
+                egui::StrokeKind::Inside,
+            );
+        }
+        */
+
+        ui.painter().circle_stroke(
+            a + a_offset,
+            handle_hitbox_size / 2.0,
+            Stroke::new(1., Color32::WHITE),
+        );
+
+
+        ui.painter().circle_stroke(
+            b + b_offset,
+            handle_hitbox_size / 2.0,
+            Stroke::new(1., Color32::WHITE),
+        );
+
+        ui.painter().circle_stroke(
+            c + c_offset,
+            handle_hitbox_size / 2.0,
+            Stroke::new(1., Color32::WHITE),
+        );
     }
 
+    let color = if selected {
+        Color32::from_rgb(0x00, 0xff, 0xff)
+    } else {
+        Color32::GREEN
+    };
+
+    let a = a + a_offset;
+    let b = b + b_offset;
+    let c = c + c_offset;
+
+    let ctr = ((a.to_vec2() + b.to_vec2() + c.to_vec2()) / 3.0).to_pos2();
+
+    ui.painter().line_segment(
+        [a, ctr],
+        Stroke::new(3., color),
+    );
+
+    ui.painter().line_segment(
+        [b, ctr],
+        Stroke::new(3., color),
+    );
+
+    ui.painter().line_segment(
+        [c, ctr],
+        Stroke::new(3., color),
+    );
+
+    any_changed
+}
+
+impl Diagram {
     pub fn junctions(&self) -> Vec<CellPos> {
         let mut junctions = HashMap::<CellPos, u32>::new();
-        for comp in &self.components {
+        for comp in &self.two_terminal {
             for pos in [comp.begin, comp.end] {
                 *junctions.entry(pos).or_default() += 1;
             }
