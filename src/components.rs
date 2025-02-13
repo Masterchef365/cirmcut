@@ -206,15 +206,10 @@ pub fn draw_battery(
     wires: [DiagramWireState; 2],
     selected: bool,
 ) {
-    draw_capacitorlike(painter, pos, wires, selected, 0.3, 0.15);
+    draw_capacitorlike(painter, pos, wires, selected, 0.1, 0.2);
 }
 
-pub fn draw_diode(
-    painter: &Painter,
-    pos: [Pos2; 2],
-    wires: [DiagramWireState; 2],
-    selected: bool,
-) {
+pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2], selected: bool) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
 
@@ -233,14 +228,20 @@ pub fn draw_diode(
 
     begin_wire.line_segment(
         painter,
-        begin_segment - x * plate_radius,
-        begin_segment + x * plate_radius,
+        end_segment - x * plate_radius,
+        end_segment + x * plate_radius,
         selected,
     );
 
-    painter.add(Shape::convex_polygon(vec![begin_segment, end_segment + x * plate_radius, end_segment - x * plate_radius], end_wire.color(selected), 
-
-    Stroke::NONE));
+    painter.add(Shape::convex_polygon(
+        vec![
+            end_segment,
+            begin_segment + x * plate_radius,
+            begin_segment - x * plate_radius,
+        ],
+        end_wire.color(selected),
+        Stroke::NONE,
+    ));
 
     begin_wire.current(painter, begin, end);
 }
@@ -263,16 +264,14 @@ pub fn draw_switch(
     begin_wire.line_segment(painter, begin, begin_segment, selected);
     end_wire.line_segment(painter, end_segment, end, selected);
 
-    let rot = if is_open {
-        PI / 6.
-    } else {
-        0.0
-    };
+    let rot = if is_open { PI / 6. } else { 0.0 };
 
-    let contact = 
-        x * rot.sin() + y * rot.cos();
+    let contact = x * rot.sin() + y * rot.cos();
 
-    painter.line_segment([begin_segment, begin_segment + contact], Stroke::new(5., Color32::WHITE));
+    painter.line_segment(
+        [begin_segment, begin_segment + contact],
+        Stroke::new(5., Color32::WHITE),
+    );
 
     begin_wire.current(painter, begin, end);
 }
@@ -285,9 +284,15 @@ pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTer
 
         let midpt = (pos[0] + pos[1].to_vec2()) / 2.0;
 
-        let pos = midpt + x * 0.25;
+        let pos = midpt + x * 0.35;
 
-        painter.text(pos, Align2::CENTER_CENTER, text, Default::default(), Color32::WHITE);
+        painter.text(
+            pos,
+            Align2::CENTER_CENTER,
+            text,
+            Default::default(),
+            Color32::WHITE,
+        );
     }
 }
 
@@ -304,17 +309,32 @@ fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
 // WARNING: Chatgpt did this lol
 fn to_metric_prefix(value: f32, unit: char) -> String {
     let prefixes = [
-        (-24, "y"), (-21, "z"), (-18, "a"), (-15, "f"), (-12, "p"), (-9, "n"), (-6, "μ"), (-3, "m"),
-        (0, ""), (3, "k"), (6, "M"), (9, "G"), (12, "T"), (15, "P"), (18, "E"), (21, "Z"), (24, "Y")
+        (-24, "y"),
+        (-21, "z"),
+        (-18, "a"),
+        (-15, "f"),
+        (-12, "p"),
+        (-9, "n"),
+        (-6, "μ"),
+        (-3, "m"),
+        (0, ""),
+        (3, "k"),
+        (6, "M"),
+        (9, "G"),
+        (12, "T"),
+        (15, "P"),
+        (18, "E"),
+        (21, "Z"),
+        (24, "Y"),
     ];
-    
+
     if value == 0.0 {
         return "0".to_string();
     }
-    
+
     let exponent = (value.abs().log10() / 3.0).floor() as i32 * 3;
     let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
-    
+
     if let Some((e, symbol)) = prefix {
         format!("{} {}{unit}", value / 10_f32.powi(*e), symbol)
     } else {
