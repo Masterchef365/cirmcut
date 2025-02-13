@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Key, Painter, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Id, Key, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
 use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
@@ -134,7 +134,7 @@ impl DiagramEditor {
         let (x, y) = pos;
         self.diagram
             .three_terminal
-            .push(([pos, (x + 1, y), (x + 1, y + 1)], component));
+            .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
         self.recompute_cached();
     }
 
@@ -514,6 +514,14 @@ fn interact_with_threeterminal(
 }
 
 impl DiagramWireState {
+    /// Zeroes current
+    pub fn floating(self) -> Self {
+        Self {
+            voltage: self.voltage,
+            current: 0.0,
+        }
+    }
+
     pub fn color(&self, selected: bool) -> Color32 {
         if selected {
             Color32::from_rgb(0x00, 0xff, 0xff)
@@ -522,9 +530,39 @@ impl DiagramWireState {
         }
     }
 
-    pub fn draw(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+    pub fn wire(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+        self.line_segment(painter, a, b, selected);
+        self.current(painter, a, b);
+    }
+
+    pub fn arrow(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, direction: bool) {
+        {
+            let (rev_a, rev_b) = if direction { (a, b) } else { (b, a) };
+            self.arrow_segment(painter, rev_a, rev_b, selected);
+        }
+
+        self.current(painter, a, b);
+
+    }
+
+    fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+        painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
+    }
+
+    fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
         painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
 
+        let y = (b - a).normalized();
+        let x = y.rot90();
+
+        let vp = (y + x / 3.0) * CELL_SIZE * 0.15;
+        let vm = (y - x / 3.0) * CELL_SIZE * 0.15;
+
+        painter.add(Shape::convex_polygon(vec![a, a + vp, a + vm], self.color(selected), Stroke::NONE));
+        //painter.arrow(a, b - a, Stroke::new(3., self.color(selected)));
+    }
+
+    pub fn current(&self, painter: &Painter, a: Pos2, b: Pos2) {
         if self.current == 0.0 {
             return;
         }

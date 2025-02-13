@@ -52,7 +52,12 @@ impl eframe::App for CircuitApp {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Wire);
                 }
-                if ui.button("Add transistor").clicked() {
+                if ui.button("Add PNP").clicked() {
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor
+                        .new_threeterminal(pos, ThreeTerminalComponent::PTransistor(100.0));
+                }
+                if ui.button("Add NPN").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
@@ -71,6 +76,10 @@ impl eframe::App for CircuitApp {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
                     self.editor.edit(ui, self.debug_draw);
                 });
+
+                if ui.input(|r| r.key_pressed(Key::Delete) || r.key_pressed(Key::Backspace)) {
+                    self.editor.delete();
+                }
 
                 if resp.response.clicked() || ui.input(|r| r.key_pressed(Key::Escape)) {
                     self.editor.reset_selection();
