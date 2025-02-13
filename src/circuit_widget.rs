@@ -1,4 +1,4 @@
-use egui::{Color32, Id, Key, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
+use egui::{Color32, DragValue, Id, Key, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
 use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
@@ -240,6 +240,18 @@ impl DiagramEditor {
     fn recompute_cached(&mut self) {
         self.junctions = Diagram::from(self.diagram()).junctions();
         self.state = DiagramState::default_from_diagram(&self.diagram);
+    }
+
+    pub fn edit_component(&mut self, ui: &mut Ui) -> Response {
+        if let Some((idx, is_threeterminal)) = self.selected {
+            if is_threeterminal {
+                edit_threeterminal_component(ui, &mut self.diagram.three_terminal[idx].1)
+            } else {
+                edit_twoterminal_component(ui, &mut self.diagram.two_terminal[idx].1)
+            }
+        } else {
+            ui.weak("Click on a component to edit")
+        }
     }
 }
 
@@ -653,3 +665,31 @@ impl DiagramState {
     }
 }
 
+fn edit_transistor(ui: &mut Ui, beta: &mut f32) -> Response {
+    ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta"))
+}
+
+fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalComponent) -> Response {
+    ui.strong(component.name());
+    match component {
+        ThreeTerminalComponent::PTransistor(beta) => {
+            edit_transistor(ui, beta)
+        },
+        ThreeTerminalComponent::NTransistor(beta) => {
+            edit_transistor(ui, beta)
+        }
+    }
+}
+
+fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent) -> Response {
+    ui.strong(component.name());
+    match component {
+        TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V")),
+        TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H")),
+        TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F")),
+        TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω")),
+        TwoTerminalComponent::Wire => ui.response(),
+        TwoTerminalComponent::Diode => ui.response(),
+        TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
+    }
+}

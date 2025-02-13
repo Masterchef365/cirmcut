@@ -46,6 +46,10 @@ impl eframe::App for CircuitApp {
             });
         });
 
+        egui::SidePanel::left("cfg").show(ctx, |ui| {
+            self.editor.edit_component(ui);
+        });
+
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
