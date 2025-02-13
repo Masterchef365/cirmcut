@@ -11,8 +11,8 @@ pub enum TwoTerminalComponent {
     Inductor(f32),
     // Capacitance
     Capacitor(f32),
-    /*
     Diode,
+    /*
     Switch(bool),
     */
 }

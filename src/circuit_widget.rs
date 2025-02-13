@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::components::{draw_capacitor, draw_inductor, draw_resistor, draw_transistor};
+use crate::components::{draw_capacitor, draw_diode, draw_inductor, draw_resistor, draw_transistor};
 
 pub const CELL_SIZE: f32 = 100.0;
 
@@ -628,6 +628,7 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected),
         TwoTerminalComponent::Inductor(_) => draw_inductor(painter, pos, wires, selected),
         TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected),
+        TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected),
     }
 }
 

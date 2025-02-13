@@ -1,6 +1,6 @@
 use std::f32::consts::TAU;
 
-use egui::{emath::TSTransform, Color32, Painter, Pos2, Vec2};
+use egui::{emath::TSTransform, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 
 use crate::circuit_widget::{DiagramWireState, CELL_SIZE};
 
@@ -185,6 +185,42 @@ pub fn draw_capacitor(
         end_segment + x * plate_radius,
         selected,
     );
+
+    begin_wire.current(painter, begin, end);
+}
+
+pub fn draw_diode(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let size = 0.2;
+
+    let sep = size * 2.0 * CELL_SIZE;
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, sep);
+
+    let y = y * CELL_SIZE;
+    let x = y.rot90();
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected);
+    end_wire.line_segment(painter, end_segment, end, selected);
+
+    let plate_radius = size;
+
+    begin_wire.line_segment(
+        painter,
+        begin_segment - x * plate_radius,
+        begin_segment + x * plate_radius,
+        selected,
+    );
+
+    painter.add(Shape::convex_polygon(vec![begin_segment, end_segment + x * plate_radius, end_segment - x * plate_radius], end_wire.color(selected), 
+
+    Stroke::NONE));
 
     begin_wire.current(painter, begin, end);
 }

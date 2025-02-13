@@ -66,6 +66,10 @@ impl eframe::App for CircuitApp {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Capacitor(10e-6));
                 }
+                if ui.button("Diode").clicked() {
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor.new_twoterminal(pos, TwoTerminalComponent::Diode);
+                }
                 if ui.button("PNP").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
