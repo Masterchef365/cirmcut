@@ -666,7 +666,7 @@ impl DiagramState {
 }
 
 fn edit_transistor(ui: &mut Ui, beta: &mut f32) -> Response {
-    ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta"))
+    ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
 
 fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalComponent) -> Response {
@@ -684,10 +684,10 @@ fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalCompon
 fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent) -> Response {
     ui.strong(component.name());
     match component {
-        TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V")),
-        TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H")),
-        TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F")),
-        TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω")),
+        TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),
+        TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H").speed(1e-2)),
+        TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
+        TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω").speed(1e-2)),
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
