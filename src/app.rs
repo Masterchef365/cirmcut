@@ -1,5 +1,5 @@
 use cirmcut_sim::{ThreeTerminalComponent, TwoTerminalComponent};
-use egui::{Color32, Id, Key, Pos2, Rect, Response, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Id, Key, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2};
 
 use crate::circuit_widget::{cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor};
 
@@ -47,37 +47,42 @@ impl eframe::App for CircuitApp {
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
+            ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
-                if ui.button("Add wire").clicked() {
+                ui.label("Add component: ");
+                if ui.button("Wire").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Wire);
                 }
-                if ui.button("Add resistor").clicked() {
+                if ui.button("Resistor").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Resistor(1000.0));
                 }
-                if ui.button("Add inductor").clicked() {
+                if ui.button("Inductor").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Inductor(1.0));
                 }
-                if ui.button("Add capacitor").clicked() {
+                if ui.button("Capacitor").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Capacitor(10e-6));
                 }
-                if ui.button("Add PNP").clicked() {
+                if ui.button("PNP").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::PTransistor(100.0));
                 }
-                if ui.button("Add NPN").clicked() {
+                if ui.button("NPN").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
                 }
+                /*
                 if ui.button("Delete").clicked() {
                     self.editor.delete();
                 }
                 ui.checkbox(&mut self.debug_draw, "Debug draw");
+                */
+            });
             });
         });
 
