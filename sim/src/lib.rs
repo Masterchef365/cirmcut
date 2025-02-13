@@ -9,9 +9,9 @@ pub enum TwoTerminalComponent {
     Resistor(f32),
     // Inductance
     Inductor(f32),
-    /*
     // Capacitance
     Capacitor(f32),
+    /*
     Diode,
     Switch(bool),
     */

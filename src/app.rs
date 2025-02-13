@@ -60,6 +60,10 @@ impl eframe::App for CircuitApp {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Inductor(1.0));
                 }
+                if ui.button("Add capacitor").clicked() {
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor.new_twoterminal(pos, TwoTerminalComponent::Capacitor(10e-6));
+                }
                 if ui.button("Add PNP").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor

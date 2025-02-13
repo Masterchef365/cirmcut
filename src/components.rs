@@ -66,7 +66,7 @@ pub fn draw_resistor(
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
 
-    let (begin_segment, end_segment, y) = center_cell_segment(begin, end);
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, CELL_SIZE);
 
     let y = y * CELL_SIZE;
     let x = y.rot90();
@@ -74,7 +74,7 @@ pub fn draw_resistor(
     begin_wire.line_segment(painter, begin, begin_segment, selected);
     end_wire.line_segment(painter, end_segment, end, selected);
 
-    let wiggles = 5;
+    let wiggles = 6;
 
     let mut amplitude = 0.095;
 
@@ -101,12 +101,12 @@ pub fn draw_resistor(
     begin_wire.current(painter, begin, end);
 }
 
-fn center_cell_segment(a: Pos2, b: Pos2) -> (Pos2, Pos2, Vec2) {
+fn center_cell_segment(a: Pos2, b: Pos2, len: f32) -> (Pos2, Pos2, Vec2) {
     let diff = b - a;
-    let remain = diff.length() - CELL_SIZE;
-    let translate = remain.max(0.0) / 2.0;
+    let remain = (diff.length() - len).max(0.0);
+    let translate = remain / 2.0;
     let n = diff.normalized();
-    (a + n * translate, a + n * (translate + CELL_SIZE), n)
+    (a + n * translate, a + n * (translate + len), n)
 }
 
 pub fn draw_inductor(
@@ -118,7 +118,7 @@ pub fn draw_inductor(
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
 
-    let (begin_segment, end_segment, y) = center_cell_segment(begin, end);
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, CELL_SIZE);
 
     let y = y * CELL_SIZE;
     let x = y.rot90();
@@ -148,6 +148,43 @@ pub fn draw_inductor(
 
         last = new_pos;
     }
+
+    begin_wire.current(painter, begin, end);
+}
+
+pub fn draw_capacitor(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let sep = 0.1 * CELL_SIZE;
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, sep);
+
+    let y = y * CELL_SIZE;
+    let x = y.rot90();
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected);
+    end_wire.line_segment(painter, end_segment, end, selected);
+
+    let plate_radius = 0.2;
+
+    begin_wire.line_segment(
+        painter,
+        begin_segment - x * plate_radius,
+        begin_segment + x * plate_radius,
+        selected,
+    );
+
+    end_wire.line_segment(
+        painter,
+        end_segment - x * plate_radius,
+        end_segment + x * plate_radius,
+        selected,
+    );
 
     begin_wire.current(painter, begin, end);
 }
