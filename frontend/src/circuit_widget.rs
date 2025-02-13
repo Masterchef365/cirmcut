@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::components::{draw_transistor, draw_wire};
+use crate::components::{draw_resistor, draw_transistor};
 
 pub const CELL_SIZE: f32 = 100.0;
 
@@ -545,11 +545,11 @@ impl DiagramWireState {
 
     }
 
-    fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+    pub fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
         painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
     }
 
-    fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+    pub fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
         painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
 
         let y = (b - a).normalized();
@@ -582,6 +582,11 @@ impl DiagramWireState {
             let rect = Rect::from_center_size(pos, Vec2::splat(rect_size));
             painter.rect_filled(rect, 0.0, Color32::YELLOW);
         }
+    }
+
+    /// Copies current from this
+    pub fn lerp_voltage(&self, other: &Self, t: f32) -> Self {
+        Self { voltage: (1.0 - t) * self.voltage + t * other.voltage, current: self.current }
     }
 }
 
@@ -619,7 +624,8 @@ fn draw_twoterminal_component(
     selected: bool,
 ) {
     match component {
-        TwoTerminalComponent::Wire => draw_wire(painter, pos, wires, selected),
+        TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected),
+        TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected),
     }
 }
 

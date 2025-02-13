@@ -52,6 +52,10 @@ impl eframe::App for CircuitApp {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Wire);
                 }
+                if ui.button("Add resistor").clicked() {
+                    let pos = egui_to_cellpos(self.view_rect.center());
+                    self.editor.new_twoterminal(pos, TwoTerminalComponent::Resistor(1000.0));
+                }
                 if ui.button("Add PNP").clicked() {
                     let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor

@@ -5,9 +5,9 @@ pub type CellPos = (i32, i32);
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum TwoTerminalComponent {
     Wire,
-    /*
     // Resistance
     Resistor(f32),
+    /*
     // Capacitance
     Capacitor(f32),
     // Inductance
