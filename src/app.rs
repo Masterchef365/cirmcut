@@ -50,33 +50,30 @@ impl eframe::App for CircuitApp {
             ScrollArea::horizontal().show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label("Add component: ");
+                let pos = egui_to_cellpos(self.view_rect.center());
                 if ui.button("Wire").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Wire);
                 }
                 if ui.button("Resistor").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Resistor(1000.0));
                 }
                 if ui.button("Inductor").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Inductor(1.0));
                 }
                 if ui.button("Capacitor").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Capacitor(10e-6));
                 }
                 if ui.button("Diode").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Diode);
                 }
+                if ui.button("Battery").clicked() {
+                    self.editor.new_twoterminal(pos, TwoTerminalComponent::Battery(5.0));
+                }
                 if ui.button("PNP").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::PTransistor(100.0));
                 }
                 if ui.button("NPN").clicked() {
-                    let pos = egui_to_cellpos(self.view_rect.center());
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
                 }

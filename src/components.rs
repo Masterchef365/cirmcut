@@ -152,11 +152,13 @@ pub fn draw_inductor(
     begin_wire.current(painter, begin, end);
 }
 
-pub fn draw_capacitor(
+fn draw_capacitorlike(
     painter: &Painter,
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
     selected: bool,
+    plate_a: f32,
+    plate_b: f32,
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -170,23 +172,40 @@ pub fn draw_capacitor(
     begin_wire.line_segment(painter, begin, begin_segment, selected);
     end_wire.line_segment(painter, end_segment, end, selected);
 
-    let plate_radius = 0.2;
-
     begin_wire.line_segment(
         painter,
-        begin_segment - x * plate_radius,
-        begin_segment + x * plate_radius,
+        begin_segment - x * plate_a,
+        begin_segment + x * plate_a,
         selected,
     );
 
     end_wire.line_segment(
         painter,
-        end_segment - x * plate_radius,
-        end_segment + x * plate_radius,
+        end_segment - x * plate_b,
+        end_segment + x * plate_b,
         selected,
     );
 
     begin_wire.current(painter, begin, end);
+}
+
+pub fn draw_capacitor(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+) {
+    let radius = 0.2;
+    draw_capacitorlike(painter, pos, wires, selected, radius, radius);
+}
+
+pub fn draw_battery(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+) {
+    draw_capacitorlike(painter, pos, wires, selected, 0.3, 0.15);
 }
 
 pub fn draw_diode(
