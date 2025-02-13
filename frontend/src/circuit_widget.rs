@@ -514,14 +514,16 @@ fn interact_with_threeterminal(
 }
 
 impl DiagramWireState {
-    pub fn draw(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
-        let color = if selected {
+    pub fn color(&self, selected: bool) -> Color32 {
+        if selected {
             Color32::from_rgb(0x00, 0xff, 0xff)
         } else {
             voltage_color(self.voltage)
-        };
+        }
+    }
 
-        painter.line_segment([a, b], Stroke::new(3., color));
+    pub fn draw(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
+        painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
 
         if self.current == 0.0 {
             return;
@@ -530,6 +532,7 @@ impl DiagramWireState {
         let spacing = CELL_SIZE / 5.0;
 
         let n = ((b - a).length() / spacing) as usize;
+        let n = n.max(1);
 
         let time = painter.ctx().input(|r| r.time * self.current as f64).fract() as f32;
 
