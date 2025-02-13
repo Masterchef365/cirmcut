@@ -1,3 +1,5 @@
+use std::f32::consts::TAU;
+
 use egui::{emath::TSTransform, Color32, Painter, Pos2, Vec2};
 
 use crate::circuit_widget::{DiagramWireState, CELL_SIZE};
@@ -72,9 +74,9 @@ pub fn draw_resistor(
     begin_wire.line_segment(painter, begin, begin_segment, selected);
     end_wire.line_segment(painter, end_segment, end, selected);
 
-    let wiggles = 4;
+    let wiggles = 5;
 
-    let mut amplitude = 0.125;
+    let mut amplitude = 0.095;
 
     let mut last = begin_segment;
     for i in 0..=wiggles * 2 {
@@ -105,4 +107,47 @@ fn center_cell_segment(a: Pos2, b: Pos2) -> (Pos2, Pos2, Vec2) {
     let translate = remain.max(0.0) / 2.0;
     let n = diff.normalized();
     (a + n * translate, a + n * (translate + CELL_SIZE), n)
+}
+
+pub fn draw_inductor(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end);
+
+    let y = y * CELL_SIZE;
+    let x = y.rot90();
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected);
+    end_wire.line_segment(painter, end_segment, end, selected);
+
+    let steps = 100;
+
+    let mut last = begin_segment;
+    for i in 0..=steps {
+        let f = i as f32 / steps as f32;
+
+        let n_loops = 5;
+        let t = f * TAU * n_loops as f32;
+
+        let k: f32 = 7.44;
+        let a = 0.12;
+
+        let xf = t.sin() / 10.0;
+        let yf = (((t.cos() - 1.0) * k.cos()) + t * a) / (TAU * n_loops as f32 * a);
+
+        let new_pos = begin_segment + x * xf + y * yf;
+        begin_wire
+            .lerp_voltage(&end_wire, f)
+            .line_segment(painter, last, new_pos, selected);
+
+        last = new_pos;
+    }
+
+    begin_wire.current(painter, begin, end);
 }

@@ -7,11 +7,11 @@ pub enum TwoTerminalComponent {
     Wire,
     // Resistance
     Resistor(f32),
+    // Inductance
+    Inductor(f32),
     /*
     // Capacitance
     Capacitor(f32),
-    // Inductance
-    Inductor(f32),
     Diode,
     Switch(bool),
     */
