@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::components::{draw_battery, draw_capacitor, draw_diode, draw_inductor, draw_resistor, draw_transistor};
+use crate::components::{draw_battery, draw_capacitor, draw_diode, draw_inductor, draw_resistor, draw_switch, draw_transistor};
 
 pub const CELL_SIZE: f32 = 100.0;
 
@@ -171,7 +171,7 @@ impl DiagramEditor {
             two_body_responses.push(ret);
         }
 
-        for (idx, (pos, comp)) in self.diagram.three_terminal.iter_mut().enumerate() {
+        for (idx, (pos, _)) in self.diagram.three_terminal.iter_mut().enumerate() {
             let ret = interact_with_threeterminal_body(
                 ui,
                 *pos,
@@ -187,13 +187,13 @@ impl DiagramEditor {
         for (idx, ((resp, (pos, comp)), wires)) in two_body_responses
             .drain(..)
             .zip(self.diagram.two_terminal.iter_mut())
-            .zip(self.state.two_terminal.iter())
+            .zip(self.state.two_terminal.iter_mut())
             .enumerate()
         {
             if interact_with_twoterminal(
                 ui,
                 pos,
-                *comp,
+                comp,
                 *wires,
                 resp,
                 self.selected == Some((idx, false)),
@@ -263,19 +263,13 @@ fn interact_with_twoterminal_body(
         body_rect.expand(10.0)
     };
 
-    let sense = if selected {
-        Sense::drag()
-    } else {
-        Sense::click_and_drag()
-    };
-
-    ui.interact(body_hitbox, id, sense)
+    ui.interact(body_hitbox, id, Sense::click_and_drag())
 }
 
 fn interact_with_twoterminal(
     ui: &mut Ui,
     pos: &mut [CellPos; 2],
-    component: TwoTerminalComponent,
+    component: &mut TwoTerminalComponent,
     wires: [DiagramWireState; 2],
     body_resp: Response,
     selected: bool,
@@ -379,11 +373,17 @@ fn interact_with_twoterminal(
         );
     }
 
+    if let TwoTerminalComponent::Switch(is_open) = component {
+        if body_resp.clicked() && selected {
+            *is_open ^= true;
+        }
+    }
+
     draw_twoterminal_component(
         ui.painter(),
         [begin + begin_offset, end + end_offset],
         wires,
-        component,
+        *component,
         selected,
     );
 
@@ -631,6 +631,7 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected),
         TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected),
         TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected),
+        TwoTerminalComponent::Switch(is_open) => draw_switch(painter, pos, wires, selected, is_open),
     }
 }
 

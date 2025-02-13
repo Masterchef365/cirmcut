@@ -1,4 +1,4 @@
-use std::f32::consts::TAU;
+use std::f32::consts::{PI, TAU};
 
 use egui::{emath::TSTransform, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 
@@ -243,3 +243,37 @@ pub fn draw_diode(
 
     begin_wire.current(painter, begin, end);
 }
+
+pub fn draw_switch(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+    is_open: bool,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, CELL_SIZE);
+
+    let y = y * CELL_SIZE;
+    let x = y.rot90();
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected);
+    end_wire.line_segment(painter, end_segment, end, selected);
+
+    let rot = if is_open {
+        PI / 6.
+    } else {
+        0.0
+    };
+
+    let contact = 
+        x * rot.sin() + y * rot.cos();
+
+    painter.line_segment([begin_segment, begin_segment + contact], Stroke::new(5., Color32::WHITE));
+
+    begin_wire.current(painter, begin, end);
+}
+
+

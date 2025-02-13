@@ -26,8 +26,8 @@ pub enum TwoTerminalComponent {
     Capacitor(f32),
     Diode,
     Battery(f32),
-    /*
     Switch(bool),
+    /*
     AcSource(Source),
     */
 }

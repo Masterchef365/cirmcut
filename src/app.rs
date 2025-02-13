@@ -69,6 +69,9 @@ impl eframe::App for CircuitApp {
                 if ui.button("Battery").clicked() {
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Battery(5.0));
                 }
+                if ui.button("Switch").clicked() {
+                    self.editor.new_twoterminal(pos, TwoTerminalComponent::Switch(true));
+                }
                 if ui.button("PNP").clicked() {
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::PTransistor(100.0));
