@@ -128,6 +128,7 @@ impl DiagramEditor {
                 self.diagram.two_terminal.remove(idx);
             }
         }
+        self.recompute_cached();
     }
 
     pub fn new_threeterminal(&mut self, pos: CellPos, component: ThreeTerminalComponent) {
