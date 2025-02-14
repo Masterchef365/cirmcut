@@ -245,9 +245,9 @@ impl DiagramEditor {
     pub fn edit_component(&mut self, ui: &mut Ui) -> Response {
         if let Some((idx, is_threeterminal)) = self.selected {
             if is_threeterminal {
-                edit_threeterminal_component(ui, &mut self.diagram.three_terminal[idx].1)
+                edit_threeterminal_component(ui, &mut self.diagram.three_terminal[idx].1, self.state.three_terminal[idx])
             } else {
-                edit_twoterminal_component(ui, &mut self.diagram.two_terminal[idx].1)
+                edit_twoterminal_component(ui, &mut self.diagram.two_terminal[idx].1, self.state.two_terminal[idx])
             }
         } else {
             ui.weak("Click on a component to edit")
@@ -669,7 +669,7 @@ fn edit_transistor(ui: &mut Ui, beta: &mut f32) -> Response {
     ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
 
-fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalComponent) -> Response {
+fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalComponent, wires: [DiagramWireState; 3]) -> Response {
     ui.strong(component.name());
     match component {
         ThreeTerminalComponent::PTransistor(beta) => {
@@ -681,9 +681,9 @@ fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalCompon
     }
 }
 
-fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent) -> Response {
+fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent, wires: [DiagramWireState; 2]) -> Response {
     ui.strong(component.name());
-    match component {
+    let ret = match component {
         TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),
         TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H").speed(1e-2)),
         TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
@@ -691,5 +691,11 @@ fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent)
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
-    }
+    };
+
+    ui.separator();
+    ui.label(format!("Vd: {}", wires[0].voltage - wires[1].voltage));
+    ui.label(format!("I: {}", wires[0].current));
+
+    ret
 }
