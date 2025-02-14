@@ -1,9 +1,17 @@
-use egui::{Color32, DragValue, Id, Key, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
-use std::{collections::HashMap, sync::Arc};
+use egui::{
+    Color32, DragValue, Id, Key, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2,
+};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
-use cirmcut_sim::{CellPos, ThreeTerminalComponent, TwoTerminalComponent};
+use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::components::{draw_battery, draw_capacitor, draw_component_value, draw_diode, draw_inductor, draw_resistor, draw_switch, draw_transistor};
+use crate::components::{
+    draw_battery, draw_capacitor, draw_component_value, draw_diode, draw_inductor, draw_resistor,
+    draw_switch, draw_transistor,
+};
 
 pub const CELL_SIZE: f32 = 100.0;
 
@@ -27,7 +35,10 @@ pub struct DiagramWireState {
 
 impl Default for DiagramWireState {
     fn default() -> Self {
-        Self { voltage: 5.0, current: 1.0 }
+        Self {
+            voltage: 5.0,
+            current: 1.0,
+        }
     }
 }
 
@@ -75,6 +86,37 @@ impl Diagram {
             .into_iter()
             .filter_map(|(pos, count)| (count > 1).then_some(pos))
             .collect()
+    }
+
+    pub fn to_primitive_diagram(&self) -> PrimitiveDiagram {
+        let mut all_positions: HashMap<CellPos, usize> = HashMap::new();
+
+        for (positions, _) in &self.two_terminal {
+            for pos in positions {
+                let idx = all_positions.len();
+                if !all_positions.contains_key(&pos) {
+                    all_positions.insert(*pos, idx);
+                }
+            }
+        }
+
+        let two_terminal = self
+            .two_terminal
+            .iter()
+            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), *component))
+            .collect();
+
+        let three_terminal = self
+            .three_terminal
+            .iter()
+            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), *component))
+            .collect();
+
+        PrimitiveDiagram {
+            num_nodes: all_positions.len(),
+            two_terminal,
+            three_terminal,
+        }
     }
 }
 
@@ -228,7 +270,6 @@ impl DiagramEditor {
 
         if any_changed {
             self.recompute_cached();
-
         }
 
         for junction in &self.junctions {
@@ -245,9 +286,17 @@ impl DiagramEditor {
     pub fn edit_component(&mut self, ui: &mut Ui) -> Response {
         if let Some((idx, is_threeterminal)) = self.selected {
             if is_threeterminal {
-                edit_threeterminal_component(ui, &mut self.diagram.three_terminal[idx].1, self.state.three_terminal[idx])
+                edit_threeterminal_component(
+                    ui,
+                    &mut self.diagram.three_terminal[idx].1,
+                    self.state.three_terminal[idx],
+                )
             } else {
-                edit_twoterminal_component(ui, &mut self.diagram.two_terminal[idx].1, self.state.two_terminal[idx])
+                edit_twoterminal_component(
+                    ui,
+                    &mut self.diagram.two_terminal[idx].1,
+                    self.state.two_terminal[idx],
+                )
             }
         } else {
             ui.weak("Click on a component to edit")
@@ -555,7 +604,6 @@ impl DiagramWireState {
         }
 
         self.current(painter, a, b);
-
     }
 
     pub fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
@@ -571,7 +619,11 @@ impl DiagramWireState {
         let vp = (y + x / 3.0) * CELL_SIZE * 0.15;
         let vm = (y - x / 3.0) * CELL_SIZE * 0.15;
 
-        painter.add(Shape::convex_polygon(vec![a, a + vp, a + vm], self.color(selected), Stroke::NONE));
+        painter.add(Shape::convex_polygon(
+            vec![a, a + vp, a + vm],
+            self.color(selected),
+            Stroke::NONE,
+        ));
         //painter.arrow(a, b - a, Stroke::new(3., self.color(selected)));
     }
 
@@ -585,7 +637,10 @@ impl DiagramWireState {
         let n = ((b - a).length() / spacing) as usize;
         let n = n.max(1);
 
-        let time = painter.ctx().input(|r| r.time * self.current as f64).fract() as f32;
+        let time = painter
+            .ctx()
+            .input(|r| r.time * self.current as f64)
+            .fract() as f32;
 
         let rect_size = 5.0;
 
@@ -599,7 +654,10 @@ impl DiagramWireState {
 
     /// Copies current from this
     pub fn lerp_voltage(&self, other: &Self, t: f32) -> Self {
-        Self { voltage: (1.0 - t) * self.voltage + t * other.voltage, current: self.current }
+        Self {
+            voltage: (1.0 - t) * self.voltage + t * other.voltage,
+            current: self.current,
+        }
     }
 }
 
@@ -624,8 +682,12 @@ fn draw_threeterminal_component(
     selected: bool,
 ) {
     match component {
-        ThreeTerminalComponent::PTransistor(_) => draw_transistor(painter, pos, wires, selected, true),
-        ThreeTerminalComponent::NTransistor(_) => draw_transistor(painter, pos, wires, selected, false),
+        ThreeTerminalComponent::PTransistor(_) => {
+            draw_transistor(painter, pos, wires, selected, true)
+        }
+        ThreeTerminalComponent::NTransistor(_) => {
+            draw_transistor(painter, pos, wires, selected, false)
+        }
     }
 }
 
@@ -644,7 +706,9 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected),
         TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected),
         TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected),
-        TwoTerminalComponent::Switch(is_open) => draw_switch(painter, pos, wires, selected, is_open),
+        TwoTerminalComponent::Switch(is_open) => {
+            draw_switch(painter, pos, wires, selected, is_open)
+        }
     }
 }
 
@@ -669,19 +733,23 @@ fn edit_transistor(ui: &mut Ui, beta: &mut f32) -> Response {
     ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
 
-fn edit_threeterminal_component(ui: &mut Ui, component: &mut ThreeTerminalComponent, wires: [DiagramWireState; 3]) -> Response {
+fn edit_threeterminal_component(
+    ui: &mut Ui,
+    component: &mut ThreeTerminalComponent,
+    wires: [DiagramWireState; 3],
+) -> Response {
     ui.strong(component.name());
     match component {
-        ThreeTerminalComponent::PTransistor(beta) => {
-            edit_transistor(ui, beta)
-        },
-        ThreeTerminalComponent::NTransistor(beta) => {
-            edit_transistor(ui, beta)
-        }
+        ThreeTerminalComponent::PTransistor(beta) => edit_transistor(ui, beta),
+        ThreeTerminalComponent::NTransistor(beta) => edit_transistor(ui, beta),
     }
 }
 
-fn edit_twoterminal_component(ui: &mut Ui, component: &mut TwoTerminalComponent, wires: [DiagramWireState; 2]) -> Response {
+fn edit_twoterminal_component(
+    ui: &mut Ui,
+    component: &mut TwoTerminalComponent,
+    wires: [DiagramWireState; 2],
+) -> Response {
     ui.strong(component.name());
     let ret = match component {
         TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),

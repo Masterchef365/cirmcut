@@ -1,10 +1,19 @@
 pub type CellPos = (i32, i32);
 
+/// Represents the simplified topology of the network. This is the input to the simulator.
+/// This is an unsimplified representation, suitable for use with human interfaces.
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug, Default)]
+pub struct PrimitiveDiagram {
+    pub num_nodes: usize,
+    pub two_terminal: Vec<([usize; 2], TwoTerminalComponent)>,
+    pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum Source {
     VoltageDC(f32),
+    Current(f32),
     /*
-    CurrentDC(f32),
     VoltageAC {
         /// Hertz
         freq: f32,
