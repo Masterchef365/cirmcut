@@ -9,6 +9,14 @@ pub struct PrimitiveDiagram {
     pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
 }
 
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
+pub struct SimOutputs {
+    /// One voltage for each node
+    pub voltages: Vec<f32>,
+    pub two_terminal_current: Vec<f32>,
+    pub three_terminal_current: Vec<[f32; 3]>,
+}
+
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum Source {
     VoltageDC(f32),
