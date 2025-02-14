@@ -100,6 +100,15 @@ impl Diagram {
             }
         }
 
+        for (positions, _) in &self.three_terminal {
+            for pos in positions {
+                let idx = all_positions.len();
+                if !all_positions.contains_key(&pos) {
+                    all_positions.insert(*pos, idx);
+                }
+            }
+        }
+
         let two_terminal = self
             .two_terminal
             .iter()

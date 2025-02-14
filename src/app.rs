@@ -101,6 +101,9 @@ impl eframe::App for CircuitApp {
         });
 
         egui::SidePanel::left("cfg").show(ctx, |ui| {
+            if ui.button("Print diagram").clicked() {
+                dbg!(self.editor.diagram().to_primitive_diagram());
+            }
             self.editor.edit_component(ui);
         });
 
