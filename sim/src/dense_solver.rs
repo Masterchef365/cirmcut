@@ -2,7 +2,6 @@ use std::ops::Range;
 
 use crate::{PrimitiveDiagram, SimOutputs};
 
-#[derive(Default)]
 pub struct Solver {
     diagram: PrimitiveDiagram,
     map: PrimitiveDiagramVectorMapping,

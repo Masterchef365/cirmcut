@@ -27,7 +27,7 @@ pub struct CircuitApp {
     current_file: CircuitFile,
 
     #[serde(skip)]
-    sim: Solver,
+    sim: Option<Solver>,
 
     paused: bool,
 }
@@ -41,9 +41,8 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         let diagram = Diagram::default();
-        let sim = Solver::new(diagram.to_primitive_diagram());
         Self {
-            sim,
+            sim: None,
             editor: DiagramEditor::new(),
             current_file: CircuitFile { diagram, dt: 1e-6 },
             paused: false,
@@ -66,8 +65,10 @@ impl CircuitApp {
         inst
     }
 
-    fn state(&self) -> DiagramState {
-        dbg!(solver_to_diagramstate(self.sim.state(), &self.current_file.diagram.to_primitive_diagram()))
+    fn state(&self) -> Option<DiagramState> {
+        self.sim.as_ref().map(|sim| {
+            solver_to_diagramstate(sim.state(), &self.current_file.diagram.to_primitive_diagram())
+        })
     }
 
     fn save_file(&mut self, ctx: &egui::Context) {
@@ -135,7 +136,7 @@ impl eframe::App for CircuitApp {
             });
         });
 
-        let mut rebuild_sim = false;
+        let mut rebuild_sim = self.sim.is_none();
 
         // TODO: Cache this?
         let state = self.state();
@@ -153,10 +154,12 @@ impl eframe::App for CircuitApp {
 
             ui.separator();
 
-            rebuild_sim |= self
-                .editor
-                .edit_component(ui, &mut self.current_file.diagram, &state)
-                .changed();
+            if let Some(state) = &state {
+                rebuild_sim |= self
+                    .editor
+                    .edit_component(ui, &mut self.current_file.diagram, state)
+                    .changed();
+            }
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
@@ -251,12 +254,14 @@ impl eframe::App for CircuitApp {
                 let rect = self.view_rect;
                 let resp = egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
-                    rebuild_sim = self.editor.edit(
-                        ui,
-                        &mut self.current_file.diagram,
-                        &state,
-                        self.debug_draw,
-                    );
+                    if let Some(state) = state {
+                        rebuild_sim |= self.editor.edit(
+                            ui,
+                            &mut self.current_file.diagram,
+                            &state,
+                            self.debug_draw,
+                        );
+                    }
                 });
 
                 if ui.input(|r| r.key_pressed(Key::Delete)) {
@@ -272,13 +277,15 @@ impl eframe::App for CircuitApp {
 
         // Reset
         if rebuild_sim {
-            self.sim = Solver::new(self.current_file.diagram.to_primitive_diagram());
+            self.sim = Some(Solver::new(self.current_file.diagram.to_primitive_diagram()));
         }
 
         if !self.paused || rebuild_sim {
             ctx.request_repaint();
 
-            self.sim.step(self.current_file.dt);
+            if let Some(sim) = &mut self.sim {
+                sim.step(self.current_file.dt);
+            }
         }
     }
 }
