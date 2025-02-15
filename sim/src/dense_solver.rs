@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use ndarray::{Array1, Array2};
 
-use crate::{PrimitiveDiagram, SimOutputs};
+use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
 pub struct Solver {
     diagram: PrimitiveDiagram,
@@ -24,7 +24,7 @@ struct PrimitiveDiagramStateVectorMapping {
 /// These are the known variables, or b from Ax = b.
 #[derive(Default)]
 struct PrimitiveDiagramParameterMapping {
-    n_known_voltages: usize,
+    n_components: usize,
     n_current_laws: usize,
     n_voltage_laws: usize,
 }
@@ -44,25 +44,25 @@ impl PrimitiveDiagramMapping {
     }
 
     fn vector_size(&self) -> usize {
-        self.state_map.total_len().max(self.param_map.total_len())
+        dbg!(self.state_map.total_len()).max(dbg!(self.param_map.total_len()))
     }
 }
 
 impl PrimitiveDiagramParameterMapping {
     fn new(diagram: &PrimitiveDiagram) -> Self {
         Self {
-            n_known_voltages: diagram.voltage_sources().count(),
+            n_components: diagram.two_terminal.len(),
             n_voltage_laws: diagram.two_terminal.len(),
             n_current_laws: diagram.num_nodes,
         }
     }
 
-    fn known_voltages(&self) -> Range<usize> {
-        0..self.n_known_voltages
+    fn components(&self) -> Range<usize> {
+        0..self.n_components
     }
 
     fn current_laws(&self) -> Range<usize> {
-        let base = self.known_voltages().end;
+        let base = self.components().end;
         base .. base + self.n_current_laws
     }
 
@@ -71,8 +71,12 @@ impl PrimitiveDiagramParameterMapping {
         base .. base + self.n_voltage_laws
     }
 
+    fn component_base(&self) -> usize {
+        self.voltage_laws().end
+    }
+
     fn total_len(&self) -> usize {
-        self.n_known_voltages
+        self.n_current_laws + self.n_voltage_laws + self.n_components
     }
 }
 
@@ -81,7 +85,7 @@ impl PrimitiveDiagramStateVectorMapping {
         Self {
             n_currents: diagram.two_terminal.len(),
             n_voltage_drops: diagram.two_terminal.len(),
-            n_voltages: diagram.num_nodes.checked_sub(1).unwrap_or(0),
+            n_voltages: diagram.num_nodes,
         }
     }
 
@@ -119,25 +123,9 @@ impl Solver {
         let n = self.map.vector_size();
 
         let mut matrix = Array2::<f32>::zeros((n, n));
+        let mut param_vect = Array1::<f32>::zeros(n);
 
         // TODO: Three-terminal components 
-
-        // Stamp parameters
-        let mut param_vect = Array1::<f32>::zeros(n);
-        for (param_vect_idx, (component_idx, voltage)) in self
-            .map
-            .param_map
-            .known_voltages()
-            .zip(self.diagram.voltage_sources())
-        {
-            // Stamps known voltages in parameter vector
-            param_vect[param_vect_idx] = voltage;
-
-            // Connects voltage parameter to voltage drop
-            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
-            matrix[(voltage_drop_idx, param_vect_idx)] = 1.0;
-        }
-
         // Stamp current laws
         for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
             let [begin_node_idx, end_node_idx] = node_indices;
@@ -165,13 +153,37 @@ impl Solver {
             }
         }
 
-        for i in 0..self.diagram.num_nodes {
-            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(i).unwrap();
+        for i in 0..self.map.param_map.n_voltage_laws {
+            let voltage_idx = self.map.state_map.voltages().nth(i).unwrap();
             let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
-            matrix[(voltage_drop_idx, voltage_law_idx)] = 1.0;
+            matrix[(voltage_idx, voltage_law_idx)] = 1.0;
         }
 
-        println!("{}", matrix);
+        // Stamp components
+        for (component_idx, &(_, component)) in self.diagram.two_terminal.iter().enumerate() {
+            let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
+            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
+
+            match component {
+                TwoTerminalComponent::Resistor(resistance) => {
+                    matrix[(current_idx, component_idx)] = -resistance;
+                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                },
+                TwoTerminalComponent::Wire => {
+                    // Vd = 0
+                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                },
+                TwoTerminalComponent::Battery(voltage) => {
+                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    param_vect[component_idx] = voltage;
+                }
+                _ => (),
+            }
+
+        }
+
+        println!("{}", matrix.t());
+        println!("Invertible? {}", ndarray_linalg::Inverse::inv(&matrix).is_ok());
         println!("{}", param_vect);
     }
 
