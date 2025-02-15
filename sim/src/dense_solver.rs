@@ -173,13 +173,31 @@ impl Solver {
                     let [begin_node_idx, end_node_idx] = node_indices;
 
                     if let Some(voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
-                        matrix[(component_idx, voltage_idx)] += 1.0;
+                        matrix[(component_idx, voltage_idx)] = 1.0;
                     }
 
                     if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
-                        matrix[(component_idx, voltage_idx)] += -1.0;
+                        matrix[(component_idx, voltage_idx)] = -1.0;
                     }
                 },
+                TwoTerminalComponent::Switch(is_open) => {
+                    // Vd = 0
+                    //matrix[(component_idx, voltage_drop_idx)] = 1.0;
+                    let [begin_node_idx, end_node_idx] = node_indices;
+
+                    if !is_open {
+                        if let Some(voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
+                            matrix[(component_idx, voltage_idx)] = 1.0;
+                        }
+
+                        if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
+                            matrix[(component_idx, voltage_idx)] = -1.0;
+                        }
+                    } else {
+                        //matrix[(component_idx, voltage_drop_idx)] = 1.0;
+                    }
+                },
+
                 TwoTerminalComponent::Battery(voltage) => {
                     matrix[(component_idx, voltage_drop_idx)] = -1.0;
                     param_vect[component_idx] = voltage;

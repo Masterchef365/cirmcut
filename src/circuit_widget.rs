@@ -422,6 +422,7 @@ fn interact_with_twoterminal(
     if let TwoTerminalComponent::Switch(is_open) = component {
         if body_resp.clicked() && selected {
             *is_open ^= true;
+            any_changed = true;
         }
     }
 
