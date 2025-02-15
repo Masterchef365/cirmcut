@@ -44,8 +44,6 @@ impl Default for DiagramWireState {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
-    state: DiagramState,
-    diagram: Diagram,
     junctions: Vec<CellPos>,
     selected: Option<(usize, bool)>,
 }
@@ -154,62 +152,52 @@ pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {
 }
 
 impl DiagramEditor {
-    pub fn new(diagram: Diagram) -> Self {
-        let mut inst = Self {
-            state: DiagramState::default_from_diagram(&diagram),
+    pub fn new() -> Self {
+        Self {
             junctions: vec![],
-            diagram,
             selected: None,
-        };
-
-        inst.recompute_cached();
-
-        inst
+        }
     }
 
-    pub fn diagram(&self) -> Diagram {
-        self.diagram.clone()
-    }
-
-    pub fn delete(&mut self) {
+    pub fn delete(&mut self, diagram: &mut Diagram) {
         if let Some((idx, three)) = self.selected.take() {
             if three {
-                self.diagram.three_terminal.remove(idx);
+                diagram.three_terminal.remove(idx);
             } else {
-                self.diagram.two_terminal.remove(idx);
+                diagram.two_terminal.remove(idx);
             }
         }
-        self.recompute_cached();
+        self.recompute_cached(diagram);
     }
 
-    pub fn new_threeterminal(&mut self, pos: CellPos, component: ThreeTerminalComponent) {
+    pub fn new_threeterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: ThreeTerminalComponent) {
         let (x, y) = pos;
-        self.diagram
+        diagram
             .three_terminal
             .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
-        self.recompute_cached();
+        self.recompute_cached(diagram);
     }
 
-    pub fn new_twoterminal(&mut self, pos: CellPos, component: TwoTerminalComponent) {
+    pub fn new_twoterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: TwoTerminalComponent) {
         let (x, y) = pos;
-        self.diagram
+        diagram
             .two_terminal
             .push(([pos, (x + 1, y)], component));
-        self.recompute_cached();
+        self.recompute_cached(diagram);
     }
 
     pub fn reset_selection(&mut self) {
         self.selected = None;
     }
 
-    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) -> bool {
+    pub fn edit(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState, debug_draw: bool) -> bool {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
         let mut any_changed = false;
         let mut new_selection = None;
 
-        for (idx, (pos, comp)) in self.diagram.two_terminal.iter_mut().enumerate() {
+        for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
                 ui,
                 *pos,
@@ -222,7 +210,7 @@ impl DiagramEditor {
             two_body_responses.push(ret);
         }
 
-        for (idx, (pos, _)) in self.diagram.three_terminal.iter_mut().enumerate() {
+        for (idx, (pos, _)) in diagram.three_terminal.iter_mut().enumerate() {
             let ret = interact_with_threeterminal_body(
                 ui,
                 *pos,
@@ -237,8 +225,8 @@ impl DiagramEditor {
 
         for (idx, ((resp, (pos, comp)), wires)) in two_body_responses
             .drain(..)
-            .zip(self.diagram.two_terminal.iter_mut())
-            .zip(self.state.two_terminal.iter_mut())
+            .zip(diagram.two_terminal.iter_mut())
+            .zip(state.two_terminal.iter())
             .enumerate()
         {
             if interact_with_twoterminal(
@@ -256,8 +244,8 @@ impl DiagramEditor {
 
         for (idx, ((resp, (pos, comp)), wires)) in three_body_responses
             .drain(..)
-            .zip(self.diagram.three_terminal.iter_mut())
-            .zip(self.state.three_terminal.iter())
+            .zip(diagram.three_terminal.iter_mut())
+            .zip(state.three_terminal.iter())
             .enumerate()
         {
             if interact_with_threeterminal(
@@ -278,7 +266,7 @@ impl DiagramEditor {
         }
 
         if any_changed {
-            self.recompute_cached();
+            self.recompute_cached(diagram);
         }
 
         for junction in &self.junctions {
@@ -289,24 +277,23 @@ impl DiagramEditor {
         any_changed
     }
 
-    fn recompute_cached(&mut self) {
-        self.junctions = Diagram::from(self.diagram()).junctions();
-        self.state = DiagramState::default_from_diagram(&self.diagram);
+    pub fn recompute_cached(&mut self, diagram: &Diagram) {
+        self.junctions = diagram.junctions();
     }
 
-    pub fn edit_component(&mut self, ui: &mut Ui) -> Response {
+    pub fn edit_component(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState) -> Response {
         if let Some((idx, is_threeterminal)) = self.selected {
             if is_threeterminal {
                 edit_threeterminal_component(
                     ui,
-                    &mut self.diagram.three_terminal[idx].1,
-                    self.state.three_terminal[idx],
+                    &mut diagram.three_terminal[idx].1,
+                    state.three_terminal[idx],
                 )
             } else {
                 edit_twoterminal_component(
                     ui,
-                    &mut self.diagram.two_terminal[idx].1,
-                    self.state.two_terminal[idx],
+                    &mut diagram.two_terminal[idx].1,
+                    state.two_terminal[idx],
                 )
             }
         } else {
