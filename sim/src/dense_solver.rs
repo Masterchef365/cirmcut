@@ -133,10 +133,10 @@ impl Solver {
 
             let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
             if let Some(end_current_law_idx) = self.map.param_map.current_laws().nth(end_node_idx) {
-                matrix[(current_idx, end_current_law_idx)] = -1.0;
+                matrix[(current_idx, end_current_law_idx)] = 1.0;
             }
             if let Some(begin_current_law_idx) = self.map.param_map.current_laws().nth(begin_node_idx) {
-                matrix[(current_idx, begin_current_law_idx)] = 1.0;
+                matrix[(current_idx, begin_current_law_idx)] = -1.0;
             }
         }
 
@@ -196,7 +196,7 @@ impl Solver {
 
         }
 
-        let matrix = matrix.t();
+        //let matrix = matrix.t();
 
         println!("Param {}", param_vect);
 
