@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 pub mod dense_solver;
 
 pub type CellPos = (i32, i32);
@@ -79,5 +81,16 @@ impl ThreeTerminalComponent {
             ThreeTerminalComponent::NTransistor(_) => "N-type Transistor (NPN)",
             ThreeTerminalComponent::PTransistor(_) => "P-type Transistor (PNP)",
         }
+    }
+}
+
+impl PrimitiveDiagram {
+    pub fn voltage_sources(&self) -> impl Iterator<Item = f32> + '_ {
+        self.two_terminal
+            .iter()
+            .filter_map(|&(_, comp)| match comp {
+                crate::TwoTerminalComponent::Battery(v) => Some(v),
+                _ => None,
+            })
     }
 }

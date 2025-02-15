@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+ndarray = "0.16.0"
+ndarray-linalg = "0.17.0"
