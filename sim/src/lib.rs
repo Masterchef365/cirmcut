@@ -85,11 +85,13 @@ impl ThreeTerminalComponent {
 }
 
 impl PrimitiveDiagram {
-    pub fn voltage_sources(&self) -> impl Iterator<Item = f32> + '_ {
+    /// Returns (component index, voltage)
+    pub fn voltage_sources(&self) -> impl Iterator<Item = (usize, f32)> + '_ {
         self.two_terminal
             .iter()
-            .filter_map(|&(_, comp)| match comp {
-                crate::TwoTerminalComponent::Battery(v) => Some(v),
+            .enumerate()
+            .filter_map(|(component_idx, &(_, comp))| match comp {
+                crate::TwoTerminalComponent::Battery(v) => Some((component_idx, v)),
                 _ => None,
             })
     }

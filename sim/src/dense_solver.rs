@@ -1,4 +1,4 @@
-use std::ops::{Range, RangeFrom};
+use std::ops::Range;
 
 use ndarray::{Array1, Array2};
 
@@ -56,12 +56,13 @@ impl PrimitiveDiagramParameterMapping {
         }
     }
 
-    fn known_voltages(&self) -> Range<usize> {
+    fn known_voltage_indices(&self) -> Range<usize> {
         0..self.n_known_voltages
     }
 
-    fn zeros(&self) -> RangeFrom<usize> {
-        self.n_known_voltages..
+    fn current_laws(&self) -> Range<usize> {
+        let base = self.known_voltage_indices().end;
+        base .. base + self.n_current_laws
     }
 
     fn total_len(&self) -> usize {
@@ -110,16 +111,42 @@ impl Solver {
 
     pub fn step(&mut self, dt: f32) {
         let n = self.map.vector_size();
+
         let mut matrix = Array2::<f32>::zeros((n, n));
 
-        let mut output_vect = Array1::<f32>::zeros(n);
+        // TODO: Three-terminal components 
 
-        // Stamp known voltages in output vector
-        for (output_idx, voltage) in self.map.param_map.known_voltages().zip(self.diagram.voltage_sources()) {
-            output_vect[output_idx] = voltage;
+        // Stamp parameters
+        let mut param_vect = Array1::<f32>::zeros(n);
+        for (param_vect_idx, (component_idx, voltage)) in self
+            .map
+            .param_map
+            .known_voltage_indices()
+            .zip(self.diagram.voltage_sources())
+        {
+            // Stamps known voltages in parameter vector
+            param_vect[param_vect_idx] = voltage;
+
+            // Connects voltage parameter to voltage drop
+            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
+            matrix[(voltage_drop_idx, param_vect_idx)] = 1.0;
         }
 
         // Stamp current laws
+        for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
+            let [begin_node_idx, end_node_idx] = node_indices;
+
+            let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
+            let end_current_law_idx = self.map.param_map.current_laws().nth(end_node_idx).unwrap();
+            let begin_current_law_idx = self.map.param_map.current_laws().nth(begin_node_idx).unwrap();
+
+            matrix[(current_idx, end_current_law_idx)] = -1.0;
+            matrix[(current_idx, begin_current_law_idx)] = 1.0;
+        }
+
+        // Stamp voltage laws
+        for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
+        }
     }
 
     pub fn state(&self) -> SimOutputs {

@@ -223,7 +223,7 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::Switch(true),
                         );
                     }
-                    if ui.button("PNP").clicked() {
+                    /*if ui.button("PNP").clicked() {
                         rebuild_sim = true;
                         self.editor.new_threeterminal(
                             &mut self.current_file.diagram,
@@ -238,7 +238,7 @@ impl eframe::App for CircuitApp {
                             pos,
                             ThreeTerminalComponent::NTransistor(100.0),
                         );
-                    }
+                    }*/
                     /*
                     if ui.button("Delete").clicked() {
                         self.editor.delete();
