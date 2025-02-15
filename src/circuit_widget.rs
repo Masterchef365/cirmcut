@@ -750,7 +750,7 @@ fn edit_twoterminal_component(
     };
 
     ui.separator();
-    ui.label(format!("Vd: {}", wires[0].voltage - wires[1].voltage));
+    ui.label(format!("Vd: {}", wires[1].voltage - wires[0].voltage));
     ui.label(format!("I: {}", wires[0].current));
 
     ret

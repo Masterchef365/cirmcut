@@ -184,7 +184,7 @@ impl Solver {
                     }
                 },
                 TwoTerminalComponent::Battery(voltage) => {
-                    matrix[(component_idx, voltage_drop_idx)] = 1.0;
+                    matrix[(component_idx, voltage_drop_idx)] = -1.0;
                     param_vect[component_idx] = voltage;
                 }
                 _ => (),
