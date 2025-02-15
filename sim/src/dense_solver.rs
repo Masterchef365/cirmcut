@@ -45,7 +45,8 @@ impl PrimitiveDiagramMapping {
     }
 
     fn vector_size(&self) -> usize {
-        dbg!(self.state_map.total_len()).max(dbg!(self.param_map.total_len()))
+        debug_assert_eq!(self.state_map.total_len(), self.param_map.total_len());
+        self.state_map.total_len()
     }
 }
 
@@ -70,10 +71,6 @@ impl PrimitiveDiagramParameterMapping {
     fn voltage_laws(&self) -> Range<usize> {
         let base = self.current_laws().end;
         base .. base + self.n_voltage_laws
-    }
-
-    fn component_base(&self) -> usize {
-        self.voltage_laws().end
     }
 
     fn total_len(&self) -> usize {

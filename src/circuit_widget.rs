@@ -8,10 +8,10 @@ use std::{
 
 use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::components::{
+use crate::{components::{
     draw_battery, draw_capacitor, draw_component_value, draw_diode, draw_inductor, draw_resistor,
     draw_switch, draw_transistor,
-};
+}, to_metric_prefix};
 
 pub const CELL_SIZE: f32 = 100.0;
 
@@ -750,8 +750,9 @@ fn edit_twoterminal_component(
     };
 
     ui.separator();
-    ui.label(format!("Vd: {}", wires[1].voltage - wires[0].voltage));
-    ui.label(format!("I: {}", wires[0].current));
+    let voltage = wires[1].voltage - wires[0].voltage;
+    ui.label(format!("Vd: {}", to_metric_prefix(voltage, 'V')));
+    ui.label(format!("I: {}", to_metric_prefix(wires[0].current, 'A')));
 
     ret
 }

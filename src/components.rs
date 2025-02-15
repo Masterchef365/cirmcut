@@ -3,7 +3,7 @@ use std::f32::consts::{PI, TAU};
 use cirmcut_sim::TwoTerminalComponent;
 use egui::{emath::TSTransform, Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 
-use crate::circuit_widget::{DiagramWireState, CELL_SIZE};
+use crate::{circuit_widget::{DiagramWireState, CELL_SIZE}, to_metric_prefix};
 
 pub fn draw_transistor(
     painter: &Painter,
@@ -303,41 +303,5 @@ fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
         TwoTerminalComponent::Inductor(i) => Some(to_metric_prefix(i, 'H')),
         TwoTerminalComponent::Resistor(r) => Some(to_metric_prefix(r, 'Ω')),
         _ => None,
-    }
-}
-
-// WARNING: Chatgpt did this lol
-fn to_metric_prefix(value: f32, unit: char) -> String {
-    let prefixes = [
-        (-24, "y"),
-        (-21, "z"),
-        (-18, "a"),
-        (-15, "f"),
-        (-12, "p"),
-        (-9, "n"),
-        (-6, "μ"),
-        (-3, "m"),
-        (0, ""),
-        (3, "k"),
-        (6, "M"),
-        (9, "G"),
-        (12, "T"),
-        (15, "P"),
-        (18, "E"),
-        (21, "Z"),
-        (24, "Y"),
-    ];
-
-    if value == 0.0 {
-        return "0".to_string();
-    }
-
-    let exponent = (value.abs().log10() / 3.0).floor() as i32 * 3;
-    let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
-
-    if let Some((e, symbol)) = prefix {
-        format!("{} {}{unit}", value / 10_f32.powi(*e), symbol)
-    } else {
-        format!("{} {unit}", value) // Fallback in case exponent is out of range
     }
 }
