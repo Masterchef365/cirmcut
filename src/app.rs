@@ -27,9 +27,6 @@ pub struct CircuitApp {
     current_file: CircuitFile,
 
     #[serde(skip)]
-    state: DiagramState,
-
-    #[serde(skip)]
     sim: Solver,
 
     paused: bool,
@@ -46,7 +43,6 @@ impl Default for CircuitApp {
         let diagram = Diagram::default();
         let sim = Solver::new(diagram.to_primitive_diagram());
         Self {
-            state: outputs_to_diagram_state(sim.state(), &diagram.to_primitive_diagram()),
             sim,
             editor: DiagramEditor::new(),
             current_file: CircuitFile { diagram, dt: 1e-6 },
@@ -70,10 +66,8 @@ impl CircuitApp {
         inst
     }
 
-    fn edit_file(&mut self, file: CircuitFile) {
-        self.editor = DiagramEditor::new();
-        self.editor.recompute_cached(&file.diagram);
-        self.current_file = file;
+    fn state(&self) -> DiagramState {
+        dbg!(solver_to_diagramstate(self.sim.state(), &self.current_file.diagram.to_primitive_diagram()))
     }
 
     fn save_file(&mut self, ctx: &egui::Context) {
@@ -107,7 +101,7 @@ impl CircuitApp {
 
         if let Some(path) = maybe_path {
             if let Some(data) = read_file(&path) {
-                self.edit_file(data);
+                self.current_file = data;
             }
         }
 
@@ -143,6 +137,9 @@ impl eframe::App for CircuitApp {
 
         let mut rebuild_sim = false;
 
+        // TODO: Cache this?
+        let state = self.state();
+
         egui::SidePanel::left("cfg").show(ctx, |ui| {
             ui.strong("Simulation");
             let text = if self.paused { "Run" } else { "Pause" };
@@ -158,7 +155,7 @@ impl eframe::App for CircuitApp {
 
             rebuild_sim |= self
                 .editor
-                .edit_component(ui, &mut self.current_file.diagram, &self.state)
+                .edit_component(ui, &mut self.current_file.diagram, &state)
                 .changed();
         });
 
@@ -257,7 +254,7 @@ impl eframe::App for CircuitApp {
                     rebuild_sim = self.editor.edit(
                         ui,
                         &mut self.current_file.diagram,
-                        &self.state,
+                        &state,
                         self.debug_draw,
                     );
                 });
@@ -282,7 +279,6 @@ impl eframe::App for CircuitApp {
             ctx.request_repaint();
 
             self.sim.step(self.current_file.dt);
-            self.state = outputs_to_diagram_state(self.sim.state(), &self.current_file.diagram.to_primitive_diagram());
         }
     }
 }
@@ -311,7 +307,7 @@ fn write_file(diagram: &CircuitFile, path: &Path) {
     };
 }
 
-fn outputs_to_diagram_state(output: SimOutputs, diagram: &PrimitiveDiagram) -> DiagramState {
+fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> DiagramState {
     DiagramState {
         two_terminal: output
             .two_terminal_current

@@ -44,7 +44,6 @@ impl Default for DiagramWireState {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
-    junctions: Vec<CellPos>,
     selected: Option<(usize, bool)>,
 }
 
@@ -154,7 +153,6 @@ pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {
 impl DiagramEditor {
     pub fn new() -> Self {
         Self {
-            junctions: vec![],
             selected: None,
         }
     }
@@ -167,7 +165,6 @@ impl DiagramEditor {
                 diagram.two_terminal.remove(idx);
             }
         }
-        self.recompute_cached(diagram);
     }
 
     pub fn new_threeterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: ThreeTerminalComponent) {
@@ -175,7 +172,6 @@ impl DiagramEditor {
         diagram
             .three_terminal
             .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
-        self.recompute_cached(diagram);
     }
 
     pub fn new_twoterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: TwoTerminalComponent) {
@@ -183,7 +179,6 @@ impl DiagramEditor {
         diagram
             .two_terminal
             .push(([pos, (x + 1, y)], component));
-        self.recompute_cached(diagram);
     }
 
     pub fn reset_selection(&mut self) {
@@ -265,20 +260,12 @@ impl DiagramEditor {
             self.selected = Some(sel);
         }
 
-        if any_changed {
-            self.recompute_cached(diagram);
-        }
-
-        for junction in &self.junctions {
+        for junction in diagram.junctions() {
             ui.painter()
-                .circle_filled(cellpos_to_egui(*junction), 5.0, Color32::LIGHT_GRAY);
+                .circle_filled(cellpos_to_egui(junction), 5.0, Color32::LIGHT_GRAY);
         }
 
         any_changed
-    }
-
-    pub fn recompute_cached(&mut self, diagram: &Diagram) {
-        self.junctions = diagram.junctions();
     }
 
     pub fn edit_component(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState) -> Response {
