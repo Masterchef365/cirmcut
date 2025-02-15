@@ -26,7 +26,7 @@ struct PrimitiveDiagramStateVectorMapping {
 struct PrimitiveDiagramParameterMapping {
     n_known_voltages: usize,
     n_current_laws: usize,
-    //n_known_currents: usize,
+    n_voltage_laws: usize,
 }
 
 /// Represents the mappings needed to work with either the state vector or the parameter map
@@ -52,17 +52,23 @@ impl PrimitiveDiagramParameterMapping {
     fn new(diagram: &PrimitiveDiagram) -> Self {
         Self {
             n_known_voltages: diagram.voltage_sources().count(),
+            n_voltage_laws: diagram.two_terminal.len(),
             n_current_laws: diagram.num_nodes,
         }
     }
 
-    fn known_voltage_indices(&self) -> Range<usize> {
+    fn known_voltages(&self) -> Range<usize> {
         0..self.n_known_voltages
     }
 
     fn current_laws(&self) -> Range<usize> {
-        let base = self.known_voltage_indices().end;
+        let base = self.known_voltages().end;
         base .. base + self.n_current_laws
+    }
+
+    fn voltage_laws(&self) -> Range<usize> {
+        let base = self.current_laws().end;
+        base .. base + self.n_voltage_laws
     }
 
     fn total_len(&self) -> usize {
@@ -121,7 +127,7 @@ impl Solver {
         for (param_vect_idx, (component_idx, voltage)) in self
             .map
             .param_map
-            .known_voltage_indices()
+            .known_voltages()
             .zip(self.diagram.voltage_sources())
         {
             // Stamps known voltages in parameter vector
@@ -146,7 +152,27 @@ impl Solver {
 
         // Stamp voltage laws
         for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
+            let [begin_node_idx, end_node_idx] = node_indices;
+
+            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
+
+            if let Some(end_voltage_idx) = self.map.param_map.voltage_laws().nth(end_node_idx) {
+                matrix[(voltage_drop_idx, end_voltage_idx)] = -1.0;
+            }
+
+            if let Some(begin_voltage_idx) = self.map.param_map.voltage_laws().nth(begin_node_idx) {
+                matrix[(voltage_drop_idx, begin_voltage_idx)] = 1.0;
+            }
         }
+
+        for i in 0..self.diagram.num_nodes {
+            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(i).unwrap();
+            let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
+            matrix[(voltage_drop_idx, voltage_law_idx)] = 1.0;
+        }
+
+        println!("{}", matrix);
+        println!("{}", param_vect);
     }
 
     pub fn state(&self) -> SimOutputs {
