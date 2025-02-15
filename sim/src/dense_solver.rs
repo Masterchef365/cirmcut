@@ -196,7 +196,7 @@ impl Solver {
 
         }
 
-        //let matrix = matrix.t();
+        let matrix = matrix.t();
 
         println!("Param {}", param_vect);
 
