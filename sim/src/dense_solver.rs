@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use ndarray::{Array1, Array2};
+use ndarray_linalg::LeastSquaresSvd;
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
@@ -53,7 +54,7 @@ impl PrimitiveDiagramParameterMapping {
         Self {
             n_components: diagram.two_terminal.len(),
             n_voltage_laws: diagram.two_terminal.len(),
-            n_current_laws: diagram.num_nodes,
+            n_current_laws: diagram.num_nodes - 1,
         }
     }
 
@@ -85,7 +86,7 @@ impl PrimitiveDiagramStateVectorMapping {
         Self {
             n_currents: diagram.two_terminal.len(),
             n_voltage_drops: diagram.two_terminal.len(),
-            n_voltages: diagram.num_nodes,
+            n_voltages: diagram.num_nodes - 1,
         }
     }
 
@@ -131,11 +132,12 @@ impl Solver {
             let [begin_node_idx, end_node_idx] = node_indices;
 
             let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
-            let end_current_law_idx = self.map.param_map.current_laws().nth(end_node_idx).unwrap();
-            let begin_current_law_idx = self.map.param_map.current_laws().nth(begin_node_idx).unwrap();
-
-            matrix[(current_idx, end_current_law_idx)] = -1.0;
-            matrix[(current_idx, begin_current_law_idx)] = 1.0;
+            if let Some(end_current_law_idx) = self.map.param_map.current_laws().nth(end_node_idx) {
+                matrix[(current_idx, end_current_law_idx)] = -1.0;
+            }
+            if let Some(begin_current_law_idx) = self.map.param_map.current_laws().nth(begin_node_idx) {
+                matrix[(current_idx, begin_current_law_idx)] = 1.0;
+            }
         }
 
         // Stamp voltage laws
@@ -145,18 +147,19 @@ impl Solver {
             let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
 
             if let Some(end_voltage_idx) = self.map.param_map.voltage_laws().nth(end_node_idx) {
-                matrix[(voltage_drop_idx, end_voltage_idx)] = -1.0;
+                matrix[(voltage_drop_idx, end_voltage_idx)] = 1.0;
             }
 
             if let Some(begin_voltage_idx) = self.map.param_map.voltage_laws().nth(begin_node_idx) {
-                matrix[(voltage_drop_idx, begin_voltage_idx)] = 1.0;
+                matrix[(voltage_drop_idx, begin_voltage_idx)] = -1.0;
             }
         }
 
         for i in 0..self.map.param_map.n_voltage_laws {
-            let voltage_idx = self.map.state_map.voltages().nth(i).unwrap();
-            let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
-            matrix[(voltage_idx, voltage_law_idx)] = 1.0;
+            if let Some(voltage_idx) = self.map.state_map.voltages().nth(i) {
+                let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
+                matrix[(voltage_idx, voltage_law_idx)] = 1.0;
+            }
         }
 
         // Stamp components
@@ -182,12 +185,29 @@ impl Solver {
 
         }
 
-        println!("{}", matrix.t());
-        println!("Invertible? {}", ndarray_linalg::Inverse::inv(&matrix).is_ok());
-        println!("{}", param_vect);
+        let matrix = matrix.t();
+
+        println!("Param {}", param_vect);
+
+        println!("{}", matrix);
+        if !matrix.is_empty() {
+            if let Ok(inv) = ndarray_linalg::Inverse::inv(&matrix) {
+                let res = inv.dot(&param_vect);
+                self.soln_vector = res.to_vec();
+                dbg!(&self.soln_vector);
+            } else {
+                let lst = matrix.least_squares(&param_vect).unwrap();
+                dbg!(matrix.dot(&lst.solution) - param_vect);
+                self.soln_vector = lst.solution.to_vec();
+            }
+            //println!("Invertible? {}", ndarray_linalg::Inverse::inv(&matrix).is_ok());
+
+        }
+
     }
 
     pub fn state(&self) -> SimOutputs {
+        dbg!(&self.soln_vector);
         let mut voltages = self.soln_vector[self.map.state_map.voltages()].to_vec();
         // Last node voltage is ground!
         voltages.push(0.0);
