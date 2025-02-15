@@ -133,10 +133,10 @@ impl Solver {
 
             let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
             if let Some(end_current_law_idx) = self.map.param_map.current_laws().nth(end_node_idx) {
-                matrix[(current_idx, end_current_law_idx)] = 1.0;
+                matrix[(end_current_law_idx, current_idx)] = 1.0;
             }
             if let Some(begin_current_law_idx) = self.map.param_map.current_laws().nth(begin_node_idx) {
-                matrix[(current_idx, begin_current_law_idx)] = -1.0;
+                matrix[(begin_current_law_idx, current_idx)] = -1.0;
             }
         }
 
@@ -147,18 +147,18 @@ impl Solver {
             let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
 
             if let Some(end_voltage_idx) = self.map.param_map.voltage_laws().nth(end_node_idx) {
-                matrix[(voltage_drop_idx, end_voltage_idx)] = 1.0;
+                matrix[(end_voltage_idx, voltage_drop_idx)] = 1.0;
             }
 
             if let Some(begin_voltage_idx) = self.map.param_map.voltage_laws().nth(begin_node_idx) {
-                matrix[(voltage_drop_idx, begin_voltage_idx)] = -1.0;
+                matrix[(begin_voltage_idx, voltage_drop_idx)] = -1.0;
             }
         }
 
         for i in 0..self.map.param_map.n_voltage_laws {
             if let Some(voltage_idx) = self.map.state_map.voltages().nth(i) {
                 let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
-                matrix[(voltage_idx, voltage_law_idx)] = 1.0;
+                matrix[(voltage_law_idx, voltage_idx)] = 1.0;
             }
         }
 
@@ -171,32 +171,30 @@ impl Solver {
 
             match component {
                 TwoTerminalComponent::Resistor(resistance) => {
-                    matrix[(current_idx, component_idx)] = -resistance;
-                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    matrix[(component_idx, current_idx)] = -resistance;
+                    matrix[(component_idx, voltage_drop_idx)] = 1.0;
                 },
                 TwoTerminalComponent::Wire => {
                     // Vd = 0
-                    //matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    //matrix[(component_idx, voltage_drop_idx)] = 1.0;
                     let [begin_node_idx, end_node_idx] = node_indices;
 
                     if let Some(voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
-                        matrix[(voltage_idx, component_idx)] += 1.0;
+                        matrix[(component_idx, voltage_idx)] += 1.0;
                     }
 
                     if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
-                        matrix[(voltage_idx, component_idx)] += -1.0;
+                        matrix[(component_idx, voltage_idx)] += -1.0;
                     }
                 },
                 TwoTerminalComponent::Battery(voltage) => {
-                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    matrix[(component_idx, voltage_drop_idx)] = 1.0;
                     param_vect[component_idx] = voltage;
                 }
                 _ => (),
             }
 
         }
-
-        let matrix = matrix.t();
 
         println!("Param {}", param_vect);
 
