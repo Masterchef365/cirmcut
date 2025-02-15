@@ -1,3 +1,5 @@
+pub mod dense_solver;
+
 pub type CellPos = (i32, i32);
 
 /// Represents the simplified topology of the network. This is the input to the simulator.
@@ -9,6 +11,7 @@ pub struct PrimitiveDiagram {
     pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
 }
 
+/// Output voltage and current, corresponding to the input indices
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct SimOutputs {
     /// One voltage for each node

@@ -1,6 +1,6 @@
 use std::{ffi::OsStr, fs::File, path::{Path, PathBuf}};
 
-use cirmcut_sim::{ThreeTerminalComponent, TwoTerminalComponent};
+use cirmcut_sim::{dense_solver::Solver, ThreeTerminalComponent, TwoTerminalComponent};
 use egui::{Color32, Id, Key, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2, ViewportCommand};
 
 use crate::circuit_widget::{cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor};
@@ -9,14 +9,22 @@ use crate::circuit_widget::{cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram
 pub struct CircuitApp {
     view_rect: Rect,
     editor: DiagramEditor,
+    #[serde(skip)]
+    sim: Solver,
     debug_draw: bool,
     current_file: Option<PathBuf>,
+    paused: bool,
+    dt: f32,
 }
 
 impl Default for CircuitApp {
     fn default() -> Self {
+        let diagram = Diagram::default();
         Self {
-            editor: DiagramEditor::new(Diagram::default()),
+            paused: false,
+            dt: 1e-6,
+            sim: Solver::new(diagram.to_primitive_diagram()),
+            editor: DiagramEditor::new(diagram),
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
             debug_draw: false,
             current_file: None,
@@ -100,11 +108,17 @@ impl eframe::App for CircuitApp {
             });
         });
 
+        let mut rebuild_sim = false;
+
         egui::SidePanel::left("cfg").show(ctx, |ui| {
-            if ui.button("Print diagram").clicked() {
-                dbg!(self.editor.diagram().to_primitive_diagram());
+            let text = if self.paused { "Run" } else { "Pause" };
+            if ui.button(text).clicked() {
+                self.paused ^= true;
             }
-            self.editor.edit_component(ui);
+
+            ui.separator();
+
+            rebuild_sim |= self.editor.edit_component(ui).changed();
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
@@ -113,31 +127,40 @@ impl eframe::App for CircuitApp {
                 ui.label("Add component: ");
                 let pos = egui_to_cellpos(self.view_rect.center());
                 if ui.button("Wire").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Wire);
                 }
                 if ui.button("Resistor").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Resistor(1000.0));
                 }
                 if ui.button("Inductor").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Inductor(1.0));
                 }
                 if ui.button("Capacitor").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Capacitor(10e-6));
                 }
                 if ui.button("Diode").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Diode);
                 }
                 if ui.button("Battery").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Battery(5.0));
                 }
                 if ui.button("Switch").clicked() {
+                    rebuild_sim = true;
                     self.editor.new_twoterminal(pos, TwoTerminalComponent::Switch(true));
                 }
                 if ui.button("PNP").clicked() {
+                    rebuild_sim = true;
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::PTransistor(100.0));
                 }
                 if ui.button("NPN").clicked() {
+                    rebuild_sim = true;
                     self.editor
                         .new_threeterminal(pos, ThreeTerminalComponent::NTransistor(100.0));
                 }
@@ -156,10 +179,11 @@ impl eframe::App for CircuitApp {
                 let rect = self.view_rect;
                 let resp = egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
-                    self.editor.edit(ui, self.debug_draw);
+                    rebuild_sim = self.editor.edit(ui, self.debug_draw);
                 });
 
                 if ui.input(|r| r.key_pressed(Key::Delete)) {
+                    rebuild_sim = true;
                     self.editor.delete();
                 }
 
@@ -168,6 +192,10 @@ impl eframe::App for CircuitApp {
                 }
             });
         });
+
+        if rebuild_sim {
+            self.sim = Solver::new(self.editor.diagram().to_primitive_diagram());
+        }
     }
 }
 

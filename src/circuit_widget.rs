@@ -202,7 +202,7 @@ impl DiagramEditor {
         self.selected = None;
     }
 
-    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) {
+    pub fn edit(&mut self, ui: &mut Ui, debug_draw: bool) -> bool {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
@@ -285,6 +285,8 @@ impl DiagramEditor {
             ui.painter()
                 .circle_filled(cellpos_to_egui(*junction), 5.0, Color32::LIGHT_GRAY);
         }
+
+        any_changed
     }
 
     fn recompute_cached(&mut self) {
