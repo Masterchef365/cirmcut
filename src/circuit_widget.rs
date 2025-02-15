@@ -624,13 +624,16 @@ impl DiagramWireState {
 
         let time = painter
             .ctx()
-            .input(|r| r.time * self.current as f64)
+            .input(|r| r.time * self.current.abs() as f64)
             .fract() as f32;
 
         let rect_size = 5.0;
 
         for i in 0..n {
-            let t = (i as f32 + time) / n as f32;
+            let mut t = (i as f32 + time) / n as f32;
+            if self.current < 0.0 {
+                t = 1.0 - t
+            }
             let pos = a.lerp(b, t);
             let rect = Rect::from_center_size(pos, Vec2::splat(rect_size));
             painter.rect_filled(rect, 0.0, Color32::YELLOW);

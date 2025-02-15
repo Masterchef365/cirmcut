@@ -192,18 +192,18 @@ impl Solver {
 
         }
 
-        println!("Param {}", param_vect);
+        //println!("Param {}", param_vect);
 
-        println!("{:>2}", matrix);
+        //println!("{:>2}", matrix);
         if !matrix.is_empty() {
             if let Ok(inv) = ndarray_linalg::Inverse::inv(&matrix) {
                 let res = inv.dot(&param_vect);
                 self.soln_vector = res.to_vec();
                 //dbg!(&self.soln_vector);
 
-                println!("Currents: {:?}", &self.soln_vector[self.map.state_map.currents()]);
-                println!("Voltage drops: {:?}", &self.soln_vector[self.map.state_map.voltage_drops()]);
-                println!("Voltages: {:?}", &self.soln_vector[self.map.state_map.voltages()]);
+                // println!("Currents: {:?}", &self.soln_vector[self.map.state_map.currents()]);
+                // println!("Voltage drops: {:?}", &self.soln_vector[self.map.state_map.voltage_drops()]);
+                // println!("Voltages: {:?}", &self.soln_vector[self.map.state_map.voltages()]);
             } else {
                 eprintln!("Warn: Unsolved");
                 //let lst = matrix.least_squares(&param_vect).unwrap();
