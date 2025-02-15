@@ -95,12 +95,12 @@ impl PrimitiveDiagramStateVectorMapping {
     }
 
     fn voltage_drops(&self) -> Range<usize> {
-        let base = self.n_currents;
+        let base = self.currents().end;
         base..base + self.n_voltage_drops
     }
 
     fn voltages(&self) -> Range<usize> {
-        let base = self.n_currents + self.n_voltage_drops;
+        let base = self.voltage_drops().end;
         base..base + self.n_voltages
     }
 
@@ -163,7 +163,7 @@ impl Solver {
         }
 
         // Stamp components
-        for (i, &(_, component)) in self.diagram.two_terminal.iter().enumerate() {
+        for (i, &(node_indices, component)) in self.diagram.two_terminal.iter().enumerate() {
             let component_idx = self.map.param_map.components().nth(i).unwrap();
 
             let current_idx = self.map.state_map.currents().nth(i).unwrap();
@@ -176,7 +176,16 @@ impl Solver {
                 },
                 TwoTerminalComponent::Wire => {
                     // Vd = 0
-                    matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    //matrix[(voltage_drop_idx, component_idx)] = 1.0;
+                    let [begin_node_idx, end_node_idx] = node_indices;
+
+                    if let Some(voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
+                        matrix[(voltage_idx, component_idx)] += 1.0;
+                    }
+
+                    if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
+                        matrix[(voltage_idx, component_idx)] += -1.0;
+                    }
                 },
                 TwoTerminalComponent::Battery(voltage) => {
                     matrix[(voltage_drop_idx, component_idx)] = 1.0;
@@ -191,16 +200,17 @@ impl Solver {
 
         println!("Param {}", param_vect);
 
-        println!("{}", matrix);
+        println!("{:>2}", matrix);
         if !matrix.is_empty() {
             if let Ok(inv) = ndarray_linalg::Inverse::inv(&matrix) {
                 let res = inv.dot(&param_vect);
                 self.soln_vector = res.to_vec();
                 dbg!(&self.soln_vector);
             } else {
-                let lst = matrix.least_squares(&param_vect).unwrap();
-                dbg!(matrix.dot(&lst.solution) - param_vect);
-                self.soln_vector = lst.solution.to_vec();
+                eprintln!("Warn: Unsolved");
+                //let lst = matrix.least_squares(&param_vect).unwrap();
+                //dbg!(matrix.dot(&lst.solution) - param_vect);
+                //self.soln_vector = lst.solution.to_vec();
             }
             //println!("Invertible? {}", ndarray_linalg::Inverse::inv(&matrix).is_ok());
 
@@ -209,7 +219,6 @@ impl Solver {
     }
 
     pub fn state(&self) -> SimOutputs {
-        dbg!(&self.soln_vector);
         let mut voltages = self.soln_vector[self.map.state_map.voltages()].to_vec();
         // Last node voltage is ground!
         voltages.push(0.0);
