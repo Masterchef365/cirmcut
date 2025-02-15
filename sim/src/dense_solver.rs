@@ -123,6 +123,7 @@ impl Solver {
     pub fn step(&mut self, dt: f32) {
         let n = self.map.vector_size();
 
+        // (params, state)
         let mut matrix = Array2::<f32>::zeros((n, n));
         let mut param_vect = Array1::<f32>::zeros(n);
 
@@ -144,21 +145,16 @@ impl Solver {
         for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
             let [begin_node_idx, end_node_idx] = node_indices;
 
+            let voltage_law_idx = self.map.param_map.voltage_laws().nth(component_idx).unwrap();
             let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
 
-            if let Some(end_voltage_idx) = self.map.param_map.voltage_laws().nth(end_node_idx) {
-                matrix[(end_voltage_idx, voltage_drop_idx)] = 1.0;
+            matrix[(voltage_law_idx, voltage_drop_idx)] = 1.0;
+            if let Some(end_voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
+                matrix[(voltage_law_idx, end_voltage_idx)] = 1.0;
             }
 
-            if let Some(begin_voltage_idx) = self.map.param_map.voltage_laws().nth(begin_node_idx) {
-                matrix[(begin_voltage_idx, voltage_drop_idx)] = -1.0;
-            }
-        }
-
-        for i in 0..self.map.param_map.n_voltage_laws {
-            if let Some(voltage_idx) = self.map.state_map.voltages().nth(i) {
-                let voltage_law_idx = self.map.param_map.voltage_laws().nth(i).unwrap();
-                matrix[(voltage_law_idx, voltage_idx)] = 1.0;
+            if let Some(begin_voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
+                matrix[(voltage_law_idx, begin_voltage_idx)] = -1.0;
             }
         }
 
@@ -203,7 +199,11 @@ impl Solver {
             if let Ok(inv) = ndarray_linalg::Inverse::inv(&matrix) {
                 let res = inv.dot(&param_vect);
                 self.soln_vector = res.to_vec();
-                dbg!(&self.soln_vector);
+                //dbg!(&self.soln_vector);
+
+                println!("Currents: {:?}", &self.soln_vector[self.map.state_map.currents()]);
+                println!("Voltage drops: {:?}", &self.soln_vector[self.map.state_map.voltage_drops()]);
+                println!("Voltages: {:?}", &self.soln_vector[self.map.state_map.voltages()]);
             } else {
                 eprintln!("Warn: Unsolved");
                 //let lst = matrix.least_squares(&param_vect).unwrap();
