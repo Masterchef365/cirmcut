@@ -163,9 +163,11 @@ impl Solver {
         }
 
         // Stamp components
-        for (component_idx, &(_, component)) in self.diagram.two_terminal.iter().enumerate() {
-            let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
-            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
+        for (i, &(_, component)) in self.diagram.two_terminal.iter().enumerate() {
+            let component_idx = self.map.param_map.components().nth(i).unwrap();
+
+            let current_idx = self.map.state_map.currents().nth(i).unwrap();
+            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(i).unwrap();
 
             match component {
                 TwoTerminalComponent::Resistor(resistance) => {
