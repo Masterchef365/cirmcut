@@ -319,12 +319,15 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
             TwoTerminalComponent::Switch(is_open) => {
                 // Vd = 0
                 //matrix.append(component_idx, voltage_drop_idx, 1.0);
-                let [begin_node_idx, end_node_idx] = node_indices;
+                //let [begin_node_idx, end_node_idx] = node_indices;
 
                 if is_open {
                     // Set current through this component to zero
                     matrix.append(component_idx, current_idx, 1.0);
                 } else {
+                    // Set voltage through this component to zero
+                    matrix.append(component_idx, voltage_drop_idx, 1.0);
+                    /*
                     // Set voltages of connected nodes to be equal
                     if let Some(voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
                         matrix.append(component_idx, voltage_idx, 1.0);
@@ -334,6 +337,7 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
                     {
                         matrix.append(component_idx, voltage_idx, -1.0);
                     }
+                    */
                 }
             }
             TwoTerminalComponent::Battery(voltage) => {
@@ -358,23 +362,14 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
                 let thermal_voltage = 8.617e-5 * temperature;
                 let nvt = n * thermal_voltage;
 
-                //let last_voltage = current_iteration[voltage_drop_idx];
-                //let vn = last_voltage / vt;
-
-                //params[component_idx] = 1.0 - current_iteration[voltage_drop_idx];
-
                 let v = last_iteration[voltage_drop_idx];
                 let i = last_iteration[current_idx];
-                let dfdi = if (sat_current + i).abs() < 1e-10 { 0.0 } else { 0.0 - nvt / (sat_current + i) };
-                let dfdv = -0.0 + sat_current * (v / nvt).exp();
+                let dfdi = - nvt / (sat_current + i);
+                let dfdv = sat_current * (v / nvt).exp();
 
                 matrix.append(component_idx, voltage_drop_idx, dfdv);
                 matrix.append(component_idx, current_idx, dfdi);
                 params[component_idx] = v * dfdv + i * dfdi;
-
-                /*let sat_current = 171.4352819281e-9;
-                matrix.append(component_idx, voltage_drop_idx, -1.0 / vt);
-                matrix.append(component_idx, current_idx, 1.0 / sat_current);*/
             }
             TwoTerminalComponent::CurrentSource(current) => {
                 matrix.append(component_idx, current_idx, 1.0);
