@@ -66,7 +66,8 @@ impl CircuitApp {
 
     fn state(&self) -> Option<DiagramState> {
         self.sim.as_ref().map(|sim| {
-            solver_to_diagramstate(sim.state(), &self.current_file.diagram.to_primitive_diagram())
+            let diag = self.current_file.diagram.to_primitive_diagram();
+            solver_to_diagramstate(sim.state(&diag), &diag)
         })
     }
 
@@ -160,10 +161,9 @@ impl eframe::App for CircuitApp {
             ui.separator();
 
             if let Some(state) = &state {
-                rebuild_sim |= self
+                self
                     .editor
-                    .edit_component(ui, &mut self.current_file.diagram, state)
-                    .changed();
+                    .edit_component(ui, &mut self.current_file.diagram, state);
             }
         });
 
@@ -282,14 +282,14 @@ impl eframe::App for CircuitApp {
 
         // Reset
         if rebuild_sim {
-            self.sim = Some(Solver::new(self.current_file.diagram.to_primitive_diagram()));
+            self.sim = Some(Solver::new(&self.current_file.diagram.to_primitive_diagram()));
         }
 
         if !self.paused || rebuild_sim {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
-                sim.step(self.current_file.dt);
+                sim.step(self.current_file.dt, &self.current_file.diagram.to_primitive_diagram());
             }
         }
     }

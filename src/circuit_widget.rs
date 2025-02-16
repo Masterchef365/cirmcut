@@ -169,6 +169,7 @@ impl DiagramEditor {
 
     pub fn new_threeterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: ThreeTerminalComponent) {
         let (x, y) = pos;
+        self.selected = Some((diagram.two_terminal.len(), true));
         diagram
             .three_terminal
             .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
@@ -176,6 +177,7 @@ impl DiagramEditor {
 
     pub fn new_twoterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: TwoTerminalComponent) {
         let (x, y) = pos;
+        self.selected = Some((diagram.two_terminal.len(), false));
         diagram
             .two_terminal
             .push(([pos, (x + 1, y)], component));
@@ -189,7 +191,7 @@ impl DiagramEditor {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
-        let mut any_changed = false;
+        let mut destructive_change = false;
         let mut new_selection = None;
 
         for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
@@ -233,7 +235,7 @@ impl DiagramEditor {
                 self.selected == Some((idx, false)),
                 debug_draw,
             ) {
-                any_changed = true;
+                destructive_change = true;
             }
         }
 
@@ -252,7 +254,7 @@ impl DiagramEditor {
                 self.selected == Some((idx, true)),
                 debug_draw,
             ) {
-                any_changed = true;
+                destructive_change = true;
             }
         }
 
@@ -265,7 +267,7 @@ impl DiagramEditor {
                 .circle_filled(cellpos_to_egui(junction), 5.0, Color32::LIGHT_GRAY);
         }
 
-        any_changed
+        destructive_change
     }
 
     pub fn edit_component(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState) -> Response {
@@ -337,7 +339,7 @@ fn interact_with_twoterminal(
     let mut begin_offset = Vec2::ZERO;
     let mut end_offset = Vec2::ZERO;
 
-    let mut any_changed = false;
+    let mut destructive_change = false;
 
     if selected {
         let end_resp = ui.interact(end_hitbox, id.with("end"), Sense::click_and_drag());
@@ -372,7 +374,7 @@ fn interact_with_twoterminal(
         if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
             pos[0] = egui_to_cellpos(begin + begin_offset);
             pos[1] = egui_to_cellpos(end + end_offset);
-            any_changed = true;
+            destructive_change = true;
         }
 
         if body_resp.drag_stopped() || begin_resp.drag_stopped() || end_resp.drag_stopped() {
@@ -427,7 +429,6 @@ fn interact_with_twoterminal(
     if let TwoTerminalComponent::Switch(is_open) = component {
         if body_resp.clicked() && selected {
             *is_open ^= true;
-            any_changed = true;
         }
     }
 
@@ -439,7 +440,7 @@ fn interact_with_twoterminal(
         selected,
     );
 
-    any_changed
+    destructive_change
 }
 
 fn interact_with_threeterminal_body(
@@ -485,7 +486,7 @@ fn interact_with_threeterminal(
     let mut b_offset = Vec2::ZERO;
     let mut c_offset = Vec2::ZERO;
 
-    let mut any_changed = false;
+    let mut destructive_change = false;
 
     if selected {
         let a_resp = ui.interact(a_hitbox, id.with("a"), Sense::click_and_drag());
@@ -534,7 +535,7 @@ fn interact_with_threeterminal(
             pos[0] = egui_to_cellpos(a + a_offset);
             pos[1] = egui_to_cellpos(b + b_offset);
             pos[2] = egui_to_cellpos(c + c_offset);
-            any_changed = true;
+            destructive_change = true;
             ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
         }
 
@@ -563,7 +564,7 @@ fn interact_with_threeterminal(
 
     draw_threeterminal_component(ui.painter(), [a, b, c], wires, component, selected);
 
-    any_changed
+    destructive_change
 }
 
 impl DiagramWireState {

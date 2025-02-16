@@ -1,14 +1,11 @@
 use std::ops::Range;
 
 use ndarray::{Array1, Array2};
-use ndarray_linalg::LeastSquaresSvd;
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
 pub struct Solver {
-    diagram: PrimitiveDiagram,
     map: PrimitiveDiagramMapping,
-
     soln_vector: Vec<f32>,
 }
 
@@ -65,12 +62,12 @@ impl PrimitiveDiagramParameterMapping {
 
     fn current_laws(&self) -> Range<usize> {
         let base = self.components().end;
-        base .. base + self.n_current_laws
+        base..base + self.n_current_laws
     }
 
     fn voltage_laws(&self) -> Range<usize> {
         let base = self.current_laws().end;
-        base .. base + self.n_voltage_laws
+        base..base + self.n_voltage_laws
     }
 
     fn total_len(&self) -> usize {
@@ -107,43 +104,57 @@ impl PrimitiveDiagramStateVectorMapping {
 }
 
 impl Solver {
-    pub fn new(diagram: PrimitiveDiagram) -> Self {
-        let map = PrimitiveDiagramMapping::new(&diagram);
+    pub fn new(diagram: &PrimitiveDiagram) -> Self {
+        let map = PrimitiveDiagramMapping::new(diagram);
 
         Self {
             soln_vector: vec![0.0; map.vector_size()],
             map,
-            diagram,
         }
     }
 
-    pub fn step(&mut self, dt: f32) {
+    /// Note: Assumes diagram is compatible with the one this solver was created with!
+    pub fn step(&mut self, dt: f32, diagram: &PrimitiveDiagram) {
         let n = self.map.vector_size();
 
         // (params, state)
         let mut matrix = Array2::<f32>::zeros((n, n));
         let mut param_vect = Array1::<f32>::zeros(n);
 
-        // TODO: Three-terminal components 
+        // TODO: Three-terminal components
         // Stamp current laws
-        for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
+        for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
+        {
             let [begin_node_idx, end_node_idx] = node_indices;
 
             let current_idx = self.map.state_map.currents().nth(component_idx).unwrap();
             if let Some(end_current_law_idx) = self.map.param_map.current_laws().nth(end_node_idx) {
                 matrix[(end_current_law_idx, current_idx)] = 1.0;
             }
-            if let Some(begin_current_law_idx) = self.map.param_map.current_laws().nth(begin_node_idx) {
+            if let Some(begin_current_law_idx) =
+                self.map.param_map.current_laws().nth(begin_node_idx)
+            {
                 matrix[(begin_current_law_idx, current_idx)] = -1.0;
             }
         }
 
         // Stamp voltage laws
-        for (component_idx, &(node_indices, _component)) in self.diagram.two_terminal.iter().enumerate() {
+        for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
+        {
             let [begin_node_idx, end_node_idx] = node_indices;
 
-            let voltage_law_idx = self.map.param_map.voltage_laws().nth(component_idx).unwrap();
-            let voltage_drop_idx = self.map.state_map.voltage_drops().nth(component_idx).unwrap();
+            let voltage_law_idx = self
+                .map
+                .param_map
+                .voltage_laws()
+                .nth(component_idx)
+                .unwrap();
+            let voltage_drop_idx = self
+                .map
+                .state_map
+                .voltage_drops()
+                .nth(component_idx)
+                .unwrap();
 
             matrix[(voltage_law_idx, voltage_drop_idx)] = 1.0;
             if let Some(end_voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
@@ -156,7 +167,7 @@ impl Solver {
         }
 
         // Stamp components
-        for (i, &(node_indices, component)) in self.diagram.two_terminal.iter().enumerate() {
+        for (i, &(node_indices, component)) in diagram.two_terminal.iter().enumerate() {
             let component_idx = self.map.param_map.components().nth(i).unwrap();
 
             let current_idx = self.map.state_map.currents().nth(i).unwrap();
@@ -166,7 +177,7 @@ impl Solver {
                 TwoTerminalComponent::Resistor(resistance) => {
                     matrix[(component_idx, current_idx)] = -resistance;
                     matrix[(component_idx, voltage_drop_idx)] = 1.0;
-                },
+                }
                 TwoTerminalComponent::Wire => {
                     // Vd = 0
                     //matrix[(component_idx, voltage_drop_idx)] = 1.0;
@@ -179,7 +190,7 @@ impl Solver {
                     if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
                         matrix[(component_idx, voltage_idx)] = -1.0;
                     }
-                },
+                }
                 TwoTerminalComponent::Switch(is_open) => {
                     // Vd = 0
                     //matrix[(component_idx, voltage_drop_idx)] = 1.0;
@@ -194,20 +205,21 @@ impl Solver {
                             matrix[(component_idx, voltage_idx)] = 1.0;
                         }
 
-                        if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
+                        if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx)
+                        {
                             matrix[(component_idx, voltage_idx)] = -1.0;
                         }
                     }
-                },
+                }
                 TwoTerminalComponent::Battery(voltage) => {
                     matrix[(component_idx, voltage_drop_idx)] = -1.0;
                     param_vect[component_idx] = voltage;
-                },
+                }
                 TwoTerminalComponent::Capacitor(capacitance) => {
                     matrix[(component_idx, current_idx)] = -dt;
                     matrix[(component_idx, voltage_drop_idx)] = capacitance;
                     param_vect[component_idx] = self.soln_vector[voltage_drop_idx] * capacitance;
-                },
+                }
                 TwoTerminalComponent::Inductor(inductance) => {
                     matrix[(component_idx, voltage_drop_idx)] = dt;
                     matrix[(component_idx, current_idx)] = -inductance;
@@ -215,7 +227,6 @@ impl Solver {
                 }
                 other => eprintln!("{other:?} is not supported yet!!"),
             }
-
         }
 
         //println!("Param {}", param_vect);
@@ -237,12 +248,10 @@ impl Solver {
                 //self.soln_vector = lst.solution.to_vec();
             }
             //println!("Invertible? {}", ndarray_linalg::Inverse::inv(&matrix).is_ok());
-
         }
-
     }
 
-    pub fn state(&self) -> SimOutputs {
+    pub fn state(&self, diagram: &PrimitiveDiagram) -> SimOutputs {
         let mut voltages = self.soln_vector[self.map.state_map.voltages()].to_vec();
         // Last node voltage is ground!
         voltages.push(0.0);
@@ -250,12 +259,7 @@ impl Solver {
         let two_terminal_current = self.soln_vector[self.map.state_map.currents()].to_vec();
 
         // TODO: Transistors!
-        let three_terminal_current = self
-            .diagram
-            .three_terminal
-            .iter()
-            .map(|_| [0.0; 3])
-            .collect();
+        let three_terminal_current = diagram.three_terminal.iter().map(|_| [0.0; 3]).collect();
 
         SimOutputs {
             voltages,
