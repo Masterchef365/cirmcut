@@ -357,19 +357,24 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
             TwoTerminalComponent::Diode => {
                 // Stolen from falstad.
                 let sat_current = 171.4352819281e-9;
-                let n = 1.0;
+                let n = 2.0;
                 let temperature = 273.15 + 22.0;
                 let thermal_voltage = 8.617e-5 * temperature;
                 let nvt = n * thermal_voltage;
 
-                let v = last_iteration[voltage_drop_idx];
-                let i = last_iteration[current_idx];
-                let dfdi = - nvt / (sat_current + i);
-                let dfdv = sat_current * (v / nvt).exp();
+                let v0 = last_iteration[voltage_drop_idx];
+                /*
+                let dfdi = 1.0 - nvt / (sat_current + i);
+                let dfdv = -1.0 + sat_current * (v / nvt).exp();
+                */
 
-                matrix.append(component_idx, voltage_drop_idx, dfdv);
-                matrix.append(component_idx, current_idx, dfdi);
-                params[component_idx] = v * dfdv + i * dfdi;
+                let ex = (v0 / nvt).exp();
+                let coeff = -(sat_current / nvt) * ex;
+
+                matrix.append(component_idx, voltage_drop_idx, coeff);
+                matrix.append(component_idx, current_idx, 1.0);
+
+                params[component_idx] = sat_current * (1.0 - ex + v0 * ex / nvt);
             }
             TwoTerminalComponent::CurrentSource(current) => {
                 matrix.append(component_idx, current_idx, 1.0);
