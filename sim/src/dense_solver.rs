@@ -104,14 +104,25 @@ impl PrimitiveDiagramStateVectorMapping {
     }
 }
 
+
 #[derive(serde::Deserialize, serde::Serialize)]
-pub struct NewtonRaphsonConfig {
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub enum SolverMode {
+    Linear,
+    #[default]
+    NewtonRaphson,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug)]
+pub struct SolverConfig {
     pub max_nr_iters: usize, 
     pub nr_step_size: f64,
     /// NR-Iterate until error reaches this value
     pub nr_tolerance: f64,
     /// When solving F Delta x = -f, which tolerance do we solve the system to?
     pub dx_soln_tolerance: f64,
+    pub mode: SolverMode,
 }
 
 impl Solver {
@@ -124,8 +135,28 @@ impl Solver {
         }
     }
 
-    /// Note: Assumes diagram is compatible with the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &NewtonRaphsonConfig) -> Result<(), String> {
+    /// Note: Assumes diagram is compatible what a sufficiently large battery (or a battery with very low internal resisith the one this solver was created with!
+    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        match cfg.mode {
+            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg),
+            SolverMode::Linear => self.linear_step(dt, diagram, cfg),
+        }
+    }
+
+    fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        let prev_time_step_soln = &self.soln_vector;
+
+        let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
+
+        let mut new_soln = params;
+        lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance)?;
+
+        self.soln_vector = new_soln;
+
+        Ok(())
+    }
+
+    fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
@@ -159,7 +190,7 @@ impl Solver {
 
             // Solve A(w_n(K)) dw = -f for dw
             let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
-            lusol(&matrix, &mut delta, -1, 1e-3)?;
+            lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance)?;
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();

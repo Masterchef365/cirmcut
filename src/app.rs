@@ -5,7 +5,7 @@ use std::{
 };
 
 use cirmcut_sim::{
-    dense_solver::{NewtonRaphsonConfig, Solver},
+    dense_solver::{Solver, SolverConfig, SolverMode},
     PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent,
 };
 use egui::{
@@ -40,7 +40,7 @@ pub struct CircuitApp {
 #[derive(serde::Deserialize, serde::Serialize)]
 struct CircuitFile {
     diagram: Diagram,
-    cfg: NewtonRaphsonConfig,
+    cfg: SolverConfig,
     dt: f64,
 }
 
@@ -213,6 +213,11 @@ impl eframe::App for CircuitApp {
                         .speed(1e-6)
                         .prefix("Matrix solve tol: "),
                 );
+
+                ui.horizontal(|ui| {
+                    ui.selectable_value(&mut self.current_file.cfg.mode, SolverMode::NewtonRaphson, "Newton-Raphson");
+                    ui.selectable_value(&mut self.current_file.cfg.mode, SolverMode::Linear, "Linear");
+                });
 
                 ui.separator();
 
@@ -459,7 +464,8 @@ impl Default for CircuitFile {
         Self {
             diagram: Diagram::default(),
             dt: 5e-3,
-            cfg: NewtonRaphsonConfig {
+            cfg: SolverConfig {
+                mode: SolverMode::default(),
                 dx_soln_tolerance: 1e-3,
                 nr_tolerance: 1e-9,
                 nr_step_size: 1e-2,
