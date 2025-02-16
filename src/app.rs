@@ -5,11 +5,12 @@ use std::{
 };
 
 use cirmcut_sim::{
-    dense_solver::{NewtonRaphsonConfig, Solver}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent,
-    TwoTerminalComponent,
+    dense_solver::{NewtonRaphsonConfig, Solver},
+    PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent,
 };
 use egui::{
-    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, RichText, ScrollArea, Sense, Stroke, Ui, Vec2, ViewportCommand
+    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, RichText, ScrollArea, Sense, Stroke,
+    Ui, Vec2, ViewportCommand,
 };
 
 use crate::circuit_widget::{
@@ -165,65 +166,98 @@ impl eframe::App for CircuitApp {
         let mut single_step = false;
 
         egui::SidePanel::left("cfg").show(ctx, |ui| {
-            ui.strong("Simulation");
-            let text = if self.paused { "Run" } else { "Pause" };
-            ui.horizontal(|ui| {
-                if ui.button(text).clicked() {
-                    self.paused ^= true;
+            ScrollArea::vertical().show(ui, |ui| {
+                ui.strong("Simulation");
+                let text = if self.paused { "Run" } else { "Pause" };
+                ui.horizontal(|ui| {
+                    if ui.button(text).clicked() {
+                        self.paused ^= true;
+                    }
+                    if self.paused {
+                        single_step |= ui.button("Single-step").clicked();
+                    }
+                });
+
+                rebuild_sim |= ui.button("Reset").clicked();
+
+                ui.add(
+                    DragValue::new(&mut self.current_file.dt)
+                        .prefix("dt: ")
+                        .speed(1e-7)
+                        .suffix(" s"),
+                );
+
+                if let Some(error) = &self.error {
+                    ui.label(RichText::new(error).color(Color32::RED));
                 }
-                if self.paused {
-                    single_step |= ui.button("Single-step").clicked();
+
+                ui.separator();
+                ui.strong("Advanced");
+
+                ui.add(
+                    DragValue::new(&mut self.current_file.cfg.max_nr_iters)
+                        .prefix("Max NR iters: "),
+                );
+                ui.add(
+                    DragValue::new(&mut self.current_file.cfg.nr_step_size)
+                        .speed(1e-6)
+                        .prefix("NR step size: "),
+                );
+                ui.add(
+                    DragValue::new(&mut self.current_file.cfg.nr_tolerance)
+                        .speed(1e-6)
+                        .prefix("NR tolerance: "),
+                );
+                ui.add(
+                    DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
+                        .speed(1e-6)
+                        .prefix("Matrix solve tol: "),
+                );
+
+                ui.separator();
+
+                if let Some(state) = &state {
+                    rebuild_sim |=
+                        self.editor
+                            .edit_component(ui, &mut self.current_file.diagram, state);
+                }
+
+                ui.separator();
+                ui.strong("Visualization");
+                ui.add(
+                    DragValue::new(&mut self.vis_opt.voltage_scale)
+                        .prefix("Voltage scale: ")
+                        .speed(1e-2),
+                );
+                ui.add(
+                    DragValue::new(&mut self.vis_opt.current_scale)
+                        .prefix("Current scale: ")
+                        .speed(1e-2),
+                );
+                if ui.button("Auto scale").clicked() {
+                    if let Some(state) = &state {
+                        let all_wires = state.two_terminal.iter().copied().flatten();
+                        self.vis_opt.voltage_scale = all_wires
+                            .clone()
+                            .map(|wire| wire.voltage)
+                            .max_by(|a, b| {
+                                a.abs()
+                                    .partial_cmp(&b.abs())
+                                    .unwrap_or(std::cmp::Ordering::Equal)
+                            })
+                            .unwrap_or(VisualizationOptions::default().voltage_scale);
+                        self.vis_opt.current_scale = all_wires
+                            .map(|wire| wire.current)
+                            .max_by(|a, b| {
+                                a.abs()
+                                    .partial_cmp(&b.abs())
+                                    .unwrap_or(std::cmp::Ordering::Equal)
+                            })
+                            .unwrap_or(VisualizationOptions::default().current_scale);
+                    }
+                    //self.vis_opt.voltage_scale =
                 }
             });
-
-            rebuild_sim |= ui.button("Reset").clicked();
-
-            ui.add(
-                DragValue::new(&mut self.current_file.dt)
-                    .prefix("dt: ")
-                    .speed(1e-7)
-                    .suffix(" s"),
-            );
-
-            if let Some(error) = &self.error {
-                ui.label(RichText::new(error).color(Color32::RED));
-            }
-
-            ui.separator();
-            ui.strong("Advanced");
-
-            ui.add(
-                DragValue::new(&mut self.current_file.cfg.max_nr_iters)
-                    .prefix("Max NR iters: "),
-            );
-            ui.add(
-                DragValue::new(&mut self.current_file.cfg.nr_step_size)
-                    .speed(1e-6)
-                    .prefix("NR step size: "),
-            );
-            ui.add(
-                DragValue::new(&mut self.current_file.cfg.nr_tolerance)
-                    .speed(1e-6)
-                    .prefix("NR tolerance: "),
-            );
-            ui.add(
-                DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
-                    .speed(1e-6)
-                    .prefix("Matrix solve tol: "),
-            );
-
-
-            ui.separator();
-
-            if let Some(state) = &state {
-                rebuild_sim |= self.editor
-                    .edit_component(ui, &mut self.current_file.diagram, state);
-            }
-
-            ui.separator();
-            ui.strong("Visualization");
-            ui.add(DragValue::new(&mut self.vis_opt.voltage_scale).prefix("Voltage scale: ").speed(1e-2));
-            ui.add(DragValue::new(&mut self.vis_opt.current_scale).prefix("Current scale: ").speed(1e-2));
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
@@ -425,12 +459,12 @@ impl Default for CircuitFile {
         Self {
             diagram: Diagram::default(),
             dt: 5e-3,
-            cfg: NewtonRaphsonConfig { 
+            cfg: NewtonRaphsonConfig {
                 dx_soln_tolerance: 1e-3,
                 nr_tolerance: 1e-9,
                 nr_step_size: 1e-2,
                 max_nr_iters: 200,
-            }
+            },
         }
     }
 }
