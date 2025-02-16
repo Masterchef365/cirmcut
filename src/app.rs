@@ -26,6 +26,9 @@ pub struct CircuitApp {
 
     current_file: CircuitFile,
 
+    step_size: f64,
+    nr_iters: usize,
+
     #[serde(skip)]
     sim: Option<Solver>,
 
@@ -42,6 +45,8 @@ impl Default for CircuitApp {
     fn default() -> Self {
         Self {
             sim: None,
+            step_size: 1e-3,
+            nr_iters: 20,
             editor: DiagramEditor::new(),
             current_file: CircuitFile::default(),
             paused: false,
@@ -163,6 +168,8 @@ impl eframe::App for CircuitApp {
             rebuild_sim |= ui.button("Reset").clicked();
 
             ui.add(DragValue::new(&mut self.current_file.dt).prefix("dt: ").speed(1e-7).suffix(" s"));
+            ui.add(DragValue::new(&mut self.nr_iters).speed(1e-2).prefix("Solver iters: "));
+            ui.add(DragValue::new(&mut self.step_size).speed(1e-6).prefix("Solver step size: "));
 
             ui.separator();
 
@@ -295,7 +302,7 @@ impl eframe::App for CircuitApp {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
-                sim.step(self.current_file.dt, &self.current_file.diagram.to_primitive_diagram());
+                sim.step(self.current_file.dt, &self.current_file.diagram.to_primitive_diagram(), self.nr_iters, self.step_size);
             }
         }
     }

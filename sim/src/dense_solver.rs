@@ -115,19 +115,11 @@ impl Solver {
     }
 
     /// Note: Assumes diagram is compatible with the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram) {
+    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, nr_iters: usize, step_size: f64) {
         let prev_time_step_soln = &self.soln_vector;
-
-
-
-        let nr_iters = 50;
-
-        let step_size = 1e-2;
 
         let mut new_state = [prev_time_step_soln.clone()];
 
-
-        eprintln!("NR algo");
         for _ in 0..nr_iters {
             let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
 
@@ -171,23 +163,6 @@ impl Solver {
         }
 
         [self.soln_vector] = new_state;
-        /*
-            //println!("Param {}", param_vect);
-
-            //println!("{:>2}", matrix);
-            let a = matrix.to_sprs();
-            //a.trim();
-
-            soln_vector = param_vect.to_vec();
-
-            let start = Instant::now();
-
-
-            let end = start.elapsed();
-            println!("Time: {} ms", end.as_secs_f32() * 1000.0);
-
-            //dbg!(&soln_vector);
-            */
     }
 
     pub fn state(&self, diagram: &PrimitiveDiagram) -> SimOutputs {
