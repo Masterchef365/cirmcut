@@ -335,6 +335,10 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, cur
                 matrix.append(component_idx, voltage_drop_idx, -1.0);
                 matrix.append(component_idx, current_idx, (-vn).exp());
             }
+            TwoTerminalComponent::CurrentSource(current) => {
+                matrix.append(component_idx, current_idx, 1.0);
+                params[component_idx] = current;
+            }
             other => eprintln!("{other:?} is not supported yet!!"),
         }
     }

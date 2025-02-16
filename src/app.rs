@@ -287,6 +287,14 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::Switch(true),
                         );
                     }
+                    if ui.button("Current source").clicked() {
+                        rebuild_sim = true;
+                        self.editor.new_twoterminal(
+                            &mut self.current_file.diagram,
+                            pos,
+                            TwoTerminalComponent::CurrentSource(0.1),
+                        );
+                    }
                     /*if ui.button("PNP").clicked() {
                         rebuild_sim = true;
                         self.editor.new_threeterminal(

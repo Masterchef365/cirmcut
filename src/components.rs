@@ -289,6 +289,34 @@ pub fn draw_switch(
     begin_wire.current(painter, begin, end, vis);
 }
 
+pub fn draw_current_source(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+    vis: &VisualizationOptions,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let r = 0.5 * CELL_SIZE;
+    let (begin_segment, end_segment, y) = center_cell_segment(begin, end, r * 2.0);
+
+    let center = begin_segment.lerp(end_segment, 0.5);
+
+    painter.circle_stroke(center, 5.0, Stroke::new(1.0, Color32::DARK_GRAY));
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
+
+    let (arrow_begin, arrow_end, y) = center_cell_segment(begin, end, r * 1.5);
+    DiagramWireState::default().arrow_segment(painter, arrow_begin, arrow_end, selected, vis);
+
+    begin_wire.current(painter, begin, end, vis);
+}
+
+
+
 pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTerminalComponent) {
     if let Some(text) = format_component_value(component) {
         let diff = pos[1] - pos[0];

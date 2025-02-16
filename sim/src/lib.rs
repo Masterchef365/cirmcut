@@ -22,20 +22,6 @@ pub struct SimOutputs {
     pub three_terminal_current: Vec<[f64; 3]>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
-pub enum Source {
-    VoltageDC(f64),
-    Current(f64),
-    /*
-    VoltageAC {
-        /// Hertz
-        freq: f64,
-        /// RMS voltage
-        rms: f64,
-    }
-    */
-}
-
 /// Represents a single circuit element.
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum TwoTerminalComponent {
@@ -49,6 +35,7 @@ pub enum TwoTerminalComponent {
     Diode,
     Battery(f64),
     Switch(bool),
+    CurrentSource(f64),
     /*
     AcSource(Source),
     */
@@ -71,6 +58,7 @@ impl TwoTerminalComponent {
             Self::Battery(_) => "Battery",
             Self::Diode => "Diode",
             Self::Switch(_) => "Switch",
+            Self::CurrentSource(_) => "Current Source",
         }
     }
 }

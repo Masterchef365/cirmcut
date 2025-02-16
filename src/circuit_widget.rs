@@ -9,8 +9,7 @@ use std::{
 use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
 use crate::{components::{
-    draw_battery, draw_capacitor, draw_component_value, draw_diode, draw_inductor, draw_resistor,
-    draw_switch, draw_transistor,
+    draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode, draw_inductor, draw_resistor, draw_switch, draw_transistor
 }, to_metric_prefix};
 
 pub const CELL_SIZE: f32 = 100.0;
@@ -726,6 +725,7 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Switch(is_open) => {
             draw_switch(painter, pos, wires, selected, is_open, vis)
         }
+        TwoTerminalComponent::CurrentSource(_) => draw_current_source(painter, pos, wires, selected, vis),
     }
 }
 
@@ -776,6 +776,7 @@ fn edit_twoterminal_component(
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
+        TwoTerminalComponent::CurrentSource(i) => ui.add(DragValue::new(i).suffix(" A").speed(1e-2)),
     };
 
     let voltage = wires[1].voltage - wires[0].voltage;
