@@ -8,14 +8,17 @@ use std::{
 
 use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
-use crate::{components::{
-    draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode, draw_inductor, draw_resistor, draw_switch, draw_transistor
-}, to_metric_prefix};
+use crate::{
+    components::{
+        draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode,
+        draw_inductor, draw_resistor, draw_switch, draw_transistor,
+    },
+    to_metric_prefix,
+};
 
 pub const CELL_SIZE: f32 = 100.0;
 
-#[derive(Copy, Clone, Debug)]
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Copy, Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct VisualizationOptions {
     /// Volts
     pub voltage_scale: f64,
@@ -160,9 +163,7 @@ pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {
 
 impl DiagramEditor {
     pub fn new() -> Self {
-        Self {
-            selected: None,
-        }
+        Self { selected: None }
     }
 
     pub fn delete(&mut self, diagram: &mut Diagram) {
@@ -175,7 +176,12 @@ impl DiagramEditor {
         }
     }
 
-    pub fn new_threeterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: ThreeTerminalComponent) {
+    pub fn new_threeterminal(
+        &mut self,
+        diagram: &mut Diagram,
+        pos: CellPos,
+        component: ThreeTerminalComponent,
+    ) {
         let (x, y) = pos;
         self.selected = Some((diagram.two_terminal.len(), true));
         diagram
@@ -183,19 +189,29 @@ impl DiagramEditor {
             .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
     }
 
-    pub fn new_twoterminal(&mut self, diagram: &mut Diagram, pos: CellPos, component: TwoTerminalComponent) {
+    pub fn new_twoterminal(
+        &mut self,
+        diagram: &mut Diagram,
+        pos: CellPos,
+        component: TwoTerminalComponent,
+    ) {
         let (x, y) = pos;
         self.selected = Some((diagram.two_terminal.len(), false));
-        diagram
-            .two_terminal
-            .push(([pos, (x + 1, y)], component));
+        diagram.two_terminal.push(([pos, (x + 1, y)], component));
     }
 
     pub fn reset_selection(&mut self) {
         self.selected = None;
     }
 
-    pub fn edit(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState, debug_draw: bool, vis: &VisualizationOptions) -> bool {
+    pub fn edit(
+        &mut self,
+        ui: &mut Ui,
+        diagram: &mut Diagram,
+        state: &DiagramState,
+        debug_draw: bool,
+        vis: &VisualizationOptions,
+    ) -> bool {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
@@ -280,35 +296,43 @@ impl DiagramEditor {
         destructive_change
     }
 
-    pub fn edit_component(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState) -> Response {
+    /// Returns true if the sim needs rebuilding
+    pub fn edit_component(
+        &mut self,
+        ui: &mut Ui,
+        diagram: &mut Diagram,
+        state: &DiagramState,
+    ) -> bool {
         if let Some((idx, is_threeterminal)) = self.selected {
-            let resp = if is_threeterminal {
+            if is_threeterminal {
                 edit_threeterminal_component(
                     ui,
                     &mut diagram.three_terminal[idx].1,
                     state.three_terminal[idx],
-                )
+                );
             } else {
-                if let Some(comp) = diagram.two_terminal.get_mut(idx) {
-                edit_twoterminal_component(
-                    ui,
-                    &mut comp.1,
-                    state.two_terminal[idx],
-                )
+                if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
+                    edit_twoterminal_component(ui, component, state.two_terminal[idx]);
+                    
+                    if ui.button("Flip").clicked() {
+                        terminals.swap(0, 1);
+                        return true;
+                    }
                 } else {
                     eprintln!("Warning: Couldn't find {idx} in diagram");
-                    ui.response()
                 }
-            };
+            }
 
             if ui.button("Delete").clicked() {
                 self.delete(diagram);
+                return true;
             }
 
-            resp
         } else {
-            ui.weak("Click on a component to edit")
+            ui.weak("Click on a component to edit");
         }
+
+        false
     }
 }
 
@@ -603,12 +627,27 @@ impl DiagramWireState {
         }
     }
 
-    pub fn wire(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+    pub fn wire(
+        &self,
+        painter: &Painter,
+        a: Pos2,
+        b: Pos2,
+        selected: bool,
+        vis: &VisualizationOptions,
+    ) {
         self.line_segment(painter, a, b, selected, vis);
         self.current(painter, a, b, vis);
     }
 
-    pub fn arrow(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, direction: bool, vis: &VisualizationOptions) {
+    pub fn arrow(
+        &self,
+        painter: &Painter,
+        a: Pos2,
+        b: Pos2,
+        selected: bool,
+        direction: bool,
+        vis: &VisualizationOptions,
+    ) {
         {
             let (rev_a, rev_b) = if direction { (a, b) } else { (b, a) };
             self.arrow_segment(painter, rev_a, rev_b, selected, vis);
@@ -617,11 +656,25 @@ impl DiagramWireState {
         self.current(painter, a, b, vis);
     }
 
-    pub fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+    pub fn line_segment(
+        &self,
+        painter: &Painter,
+        a: Pos2,
+        b: Pos2,
+        selected: bool,
+        vis: &VisualizationOptions,
+    ) {
         painter.line_segment([a, b], Stroke::new(3., self.color(selected, vis)));
     }
 
-    pub fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+    pub fn arrow_segment(
+        &self,
+        painter: &Painter,
+        a: Pos2,
+        b: Pos2,
+        selected: bool,
+        vis: &VisualizationOptions,
+    ) {
         painter.line_segment([a, b], Stroke::new(3., self.color(selected, vis)));
 
         let y = (b - a).normalized();
@@ -694,7 +747,7 @@ fn draw_threeterminal_component(
     wires: [DiagramWireState; 3],
     component: ThreeTerminalComponent,
     selected: bool,
-    vis: &VisualizationOptions
+    vis: &VisualizationOptions,
 ) {
     match component {
         ThreeTerminalComponent::PTransistor(_) => {
@@ -725,7 +778,9 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Switch(is_open) => {
             draw_switch(painter, pos, wires, selected, is_open, vis)
         }
-        TwoTerminalComponent::CurrentSource(_) => draw_current_source(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::CurrentSource(_) => {
+            draw_current_source(painter, pos, wires, selected, vis)
+        }
     }
 }
 
@@ -754,21 +809,21 @@ fn edit_threeterminal_component(
     ui: &mut Ui,
     component: &mut ThreeTerminalComponent,
     wires: [DiagramWireState; 3],
-) -> Response {
+) {
     ui.strong(component.name());
     match component {
         ThreeTerminalComponent::PTransistor(beta) => edit_transistor(ui, beta),
         ThreeTerminalComponent::NTransistor(beta) => edit_transistor(ui, beta),
-    }
+    };
 }
 
 fn edit_twoterminal_component(
     ui: &mut Ui,
     component: &mut TwoTerminalComponent,
     wires: [DiagramWireState; 2],
-) -> Response {
+) {
     ui.strong(component.name());
-    let ret = match component {
+    match component {
         TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),
         TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H").speed(1e-2)),
         TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
@@ -776,18 +831,21 @@ fn edit_twoterminal_component(
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
-        TwoTerminalComponent::CurrentSource(i) => ui.add(DragValue::new(i).suffix(" A").speed(1e-2)),
+        TwoTerminalComponent::CurrentSource(i) => {
+            ui.add(DragValue::new(i).suffix(" A").speed(1e-2))
+        }
     };
 
     let voltage = wires[1].voltage - wires[0].voltage;
     ui.label(format!("Vd: {}", to_metric_prefix(voltage, 'V')));
     ui.label(format!("I: {}", to_metric_prefix(wires[0].current, 'A')));
-
-    ret
 }
 
 impl Default for VisualizationOptions {
     fn default() -> Self {
-        Self { voltage_scale: 5.0, current_scale: 5.0 }
+        Self {
+            voltage_scale: 5.0,
+            current_scale: 5.0,
+        }
     }
 }

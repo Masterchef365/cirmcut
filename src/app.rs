@@ -216,7 +216,7 @@ impl eframe::App for CircuitApp {
             ui.separator();
 
             if let Some(state) = &state {
-                self.editor
+                rebuild_sim |= self.editor
                     .edit_component(ui, &mut self.current_file.diagram, state);
             }
 
