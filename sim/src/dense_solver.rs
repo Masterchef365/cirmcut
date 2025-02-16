@@ -238,7 +238,7 @@ impl Solver {
     }
 }
 
-fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, current_iteration: &[f64], last_state: &[f64]) -> (Sprs, Vec<f64>) {
+fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs, Vec<f64>) {
     let n = map.vector_size();
 
     // (params, state)
@@ -343,27 +343,38 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, cur
             TwoTerminalComponent::Capacitor(capacitance) => {
                 matrix.append(component_idx, current_idx, -dt);
                 matrix.append(component_idx, voltage_drop_idx, capacitance);
-                params[component_idx] = last_state[voltage_drop_idx] * capacitance;
+                params[component_idx] = last_timestep[voltage_drop_idx] * capacitance;
             }
             TwoTerminalComponent::Inductor(inductance) => {
                 matrix.append(component_idx, voltage_drop_idx, dt);
                 matrix.append(component_idx, current_idx, -inductance);
-                params[component_idx] = -last_state[current_idx] * inductance;
+                params[component_idx] = -last_timestep[current_idx] * inductance;
             }
             TwoTerminalComponent::Diode => {
                 // Stolen from falstad.
-                //let sat_current = 171.4352819281e-9;
-                let n = 2.0;
+                let sat_current = 171.4352819281e-9;
+                let n = 1.0;
                 let temperature = 273.15 + 22.0;
                 let thermal_voltage = 8.617e-5 * temperature;
-                let vt = thermal_voltage / n;
+                let nvt = n * thermal_voltage;
 
-                let last_voltage = current_iteration[voltage_drop_idx];
-                let vn = last_voltage / vt;
+                //let last_voltage = current_iteration[voltage_drop_idx];
+                //let vn = last_voltage / vt;
 
-                params[component_idx] = 1.0 - current_iteration[voltage_drop_idx];
-                matrix.append(component_idx, voltage_drop_idx, -1.0);
-                matrix.append(component_idx, current_idx, (-vn).exp());
+                //params[component_idx] = 1.0 - current_iteration[voltage_drop_idx];
+
+                let v = last_iteration[voltage_drop_idx];
+                let i = last_iteration[current_idx];
+                let dfdi = if (sat_current + i).abs() < 1e-10 { 0.0 } else { 0.0 - nvt / (sat_current + i) };
+                let dfdv = -0.0 + sat_current * (v / nvt).exp();
+
+                matrix.append(component_idx, voltage_drop_idx, dfdv);
+                matrix.append(component_idx, current_idx, dfdi);
+                params[component_idx] = v * dfdv + i * dfdi;
+
+                /*let sat_current = 171.4352819281e-9;
+                matrix.append(component_idx, voltage_drop_idx, -1.0 / vt);
+                matrix.append(component_idx, current_idx, 1.0 / sat_current);*/
             }
             TwoTerminalComponent::CurrentSource(current) => {
                 matrix.append(component_idx, current_idx, 1.0);
