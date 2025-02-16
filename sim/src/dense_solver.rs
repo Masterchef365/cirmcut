@@ -1,7 +1,6 @@
-use std::{ops::Range, time::Instant};
+use std::ops::Range;
 
-use ndarray::{linalg::kron, Array1, Array2};
-use rsparse::{data::{Sprs, Trpl}, lusol, sprs_print};
+use rsparse::{data::{Sprs, Trpl}, lusol};
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
@@ -370,7 +369,7 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, cur
                 matrix.append(component_idx, current_idx, 1.0);
                 params[component_idx] = current;
             }
-            other => eprintln!("{other:?} is not supported yet!!"),
+            //other => eprintln!("{other:?} is not supported yet!!"),
         }
     }
 

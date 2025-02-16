@@ -1,9 +1,12 @@
 use std::f32::consts::{PI, TAU};
 
 use cirmcut_sim::TwoTerminalComponent;
-use egui::{emath::TSTransform, Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
+use egui::{Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 
-use crate::{circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE}, to_metric_prefix};
+use crate::{
+    circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE},
+    to_metric_prefix,
+};
 
 pub fn draw_transistor(
     painter: &Painter,
@@ -11,7 +14,7 @@ pub fn draw_transistor(
     wires: [DiagramWireState; 3],
     selected: bool,
     p_type: bool,
-    vis: &VisualizationOptions
+    vis: &VisualizationOptions,
 ) {
     let [emitter_in, base_in, collector_in] = pos;
     let [emitter_wire, base_wire, collector_wire] = wires;
@@ -185,7 +188,7 @@ fn draw_capacitorlike(
         begin_segment - x * plate_a,
         begin_segment + x * plate_a,
         selected,
-        vis
+        vis,
     );
 
     end_wire.line_segment(
@@ -220,7 +223,13 @@ pub fn draw_battery(
     draw_capacitorlike(painter, pos, wires, selected, 0.1, 0.2, vis);
 }
 
-pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2], selected: bool, vis: &VisualizationOptions) {
+pub fn draw_diode(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+    vis: &VisualizationOptions,
+) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
 
@@ -264,7 +273,7 @@ pub fn draw_switch(
     wires: [DiagramWireState; 2],
     selected: bool,
     is_open: bool,
-    vis: &VisualizationOptions
+    vis: &VisualizationOptions,
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -314,8 +323,6 @@ pub fn draw_current_source(
 
     begin_wire.current(painter, begin, end, vis);
 }
-
-
 
 pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTerminalComponent) {
     if let Some(text) = format_component_value(component) {

@@ -6,16 +6,13 @@ use std::{
 
 use cirmcut_sim::{
     dense_solver::{Solver, SolverConfig, SolverMode},
-    PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent,
+    PrimitiveDiagram, SimOutputs, TwoTerminalComponent,
 };
-use egui::{
-    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, RichText, ScrollArea, Sense, Stroke,
-    Ui, Vec2, ViewportCommand,
-};
+use egui::{Color32, DragValue, Key, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
 
 use crate::circuit_widget::{
-    cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState,
-    DiagramWireState, VisualizationOptions,
+    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
+    VisualizationOptions,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -215,8 +212,16 @@ impl eframe::App for CircuitApp {
                 );
 
                 ui.horizontal(|ui| {
-                    ui.selectable_value(&mut self.current_file.cfg.mode, SolverMode::NewtonRaphson, "Newton-Raphson");
-                    ui.selectable_value(&mut self.current_file.cfg.mode, SolverMode::Linear, "Linear");
+                    ui.selectable_value(
+                        &mut self.current_file.cfg.mode,
+                        SolverMode::NewtonRaphson,
+                        "Newton-Raphson",
+                    );
+                    ui.selectable_value(
+                        &mut self.current_file.cfg.mode,
+                        SolverMode::Linear,
+                        "Linear",
+                    );
                 });
 
                 if ui.button("Default cfg").clicked() {
@@ -249,19 +254,11 @@ impl eframe::App for CircuitApp {
                         self.vis_opt.voltage_scale = all_wires
                             .clone()
                             .map(|wire| wire.voltage.abs())
-                            .max_by(|a, b| {
-                                a
-                                    .partial_cmp(&b)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            })
+                            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().voltage_scale);
                         self.vis_opt.current_scale = all_wires
                             .map(|wire| wire.current.abs())
-                            .max_by(|a, b| {
-                                a
-                                    .partial_cmp(&b)
-                                    .unwrap_or(std::cmp::Ordering::Equal)
-                            })
+                            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().current_scale);
                     }
                     //self.vis_opt.voltage_scale =
