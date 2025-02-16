@@ -29,8 +29,8 @@ pub struct DiagramState {
 
 #[derive(Clone, Copy, Debug, serde::Deserialize, serde::Serialize)]
 pub struct DiagramWireState {
-    pub voltage: f32,
-    pub current: f32,
+    pub voltage: f64,
+    pub current: f64,
 }
 
 impl Default for DiagramWireState {
@@ -648,7 +648,7 @@ impl DiagramWireState {
     }
 
     /// Copies current from this
-    pub fn lerp_voltage(&self, other: &Self, t: f32) -> Self {
+    pub fn lerp_voltage(&self, other: &Self, t: f64) -> Self {
         Self {
             voltage: (1.0 - t) * self.voltage + t * other.voltage,
             current: self.current,
@@ -656,16 +656,16 @@ impl DiagramWireState {
     }
 }
 
-fn voltage_color(voltage: f32) -> Color32 {
+fn voltage_color(voltage: f64) -> Color32 {
     let v = voltage / 5.0;
     let v = v.clamp(-1.0, 1.0);
 
     let neutral = Color32::DARK_GRAY;
 
     if v > 0.0 {
-        neutral.lerp_to_gamma(Color32::GREEN, v)
+        neutral.lerp_to_gamma(Color32::GREEN, v as f32)
     } else {
-        neutral.lerp_to_gamma(Color32::RED, -v)
+        neutral.lerp_to_gamma(Color32::RED, -v as f32)
     }
 }
 
@@ -724,7 +724,7 @@ impl DiagramState {
     }
 }
 
-fn edit_transistor(ui: &mut Ui, beta: &mut f32) -> Response {
+fn edit_transistor(ui: &mut Ui, beta: &mut f64) -> Response {
     ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
 

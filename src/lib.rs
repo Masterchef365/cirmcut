@@ -6,7 +6,7 @@ pub use app::CircuitApp;
 mod circuit_widget;
 mod components;
 
-fn to_metric_prefix(value: f32, unit: char) -> String {
+fn to_metric_prefix(value: f64, unit: char) -> String {
     // WARNING: Chatgpt did this lol
     let prefixes = [
         (-24, "y"),
@@ -36,7 +36,7 @@ fn to_metric_prefix(value: f32, unit: char) -> String {
     let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
 
     if let Some((e, symbol)) = prefix {
-        format!("{} {}{unit}", value / 10_f32.powi(*e), symbol)
+        format!("{} {}{unit}", value / 10_f64.powi(*e), symbol)
     } else {
         format!("{} {unit}", value) // Fallback in case exponent is out of range
     }

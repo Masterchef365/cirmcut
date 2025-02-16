@@ -35,7 +35,7 @@ pub struct CircuitApp {
 #[derive(serde::Deserialize, serde::Serialize)]
 struct CircuitFile {
     diagram: Diagram,
-    dt: f32,
+    dt: f64,
 }
 
 impl Default for CircuitApp {

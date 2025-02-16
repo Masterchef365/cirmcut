@@ -17,21 +17,21 @@ pub struct PrimitiveDiagram {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct SimOutputs {
     /// One voltage for each node
-    pub voltages: Vec<f32>,
-    pub two_terminal_current: Vec<f32>,
-    pub three_terminal_current: Vec<[f32; 3]>,
+    pub voltages: Vec<f64>,
+    pub two_terminal_current: Vec<f64>,
+    pub three_terminal_current: Vec<[f64; 3]>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum Source {
-    VoltageDC(f32),
-    Current(f32),
+    VoltageDC(f64),
+    Current(f64),
     /*
     VoltageAC {
         /// Hertz
-        freq: f32,
+        freq: f64,
         /// RMS voltage
-        rms: f32,
+        rms: f64,
     }
     */
 }
@@ -41,13 +41,13 @@ pub enum Source {
 pub enum TwoTerminalComponent {
     Wire,
     // Resistance
-    Resistor(f32),
+    Resistor(f64),
     // Inductance
-    Inductor(f32),
+    Inductor(f64),
     // Capacitance
-    Capacitor(f32),
+    Capacitor(f64),
     Diode,
-    Battery(f32),
+    Battery(f64),
     Switch(bool),
     /*
     AcSource(Source),
@@ -57,8 +57,8 @@ pub enum TwoTerminalComponent {
 #[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub enum ThreeTerminalComponent {
     /// Beta
-    PTransistor(f32),
-    NTransistor(f32),
+    PTransistor(f64),
+    NTransistor(f64),
 }
 
 impl TwoTerminalComponent {
@@ -86,7 +86,7 @@ impl ThreeTerminalComponent {
 
 impl PrimitiveDiagram {
     /// Returns (component index, voltage)
-    pub fn voltage_sources(&self) -> impl Iterator<Item = (usize, f32)> + '_ {
+    pub fn voltage_sources(&self) -> impl Iterator<Item = (usize, f64)> + '_ {
         self.two_terminal
             .iter()
             .enumerate()

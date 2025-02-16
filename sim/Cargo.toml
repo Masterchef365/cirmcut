@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 ndarray = "0.16.0"
-ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
+rsparse = "1.0.0"
+#ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }

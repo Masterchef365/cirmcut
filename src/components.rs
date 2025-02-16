@@ -93,7 +93,7 @@ pub fn draw_resistor(
             begin_segment + y * f + x * amplitude
         };
         begin_wire
-            .lerp_voltage(&end_wire, f)
+            .lerp_voltage(&end_wire, f as f64)
             .line_segment(painter, last, new_pos, selected);
 
         last = new_pos;
@@ -144,7 +144,7 @@ pub fn draw_inductor(
 
         let new_pos = begin_segment + x * xf + y * yf;
         begin_wire
-            .lerp_voltage(&end_wire, f)
+            .lerp_voltage(&end_wire, f as f64)
             .line_segment(painter, last, new_pos, selected);
 
         last = new_pos;
