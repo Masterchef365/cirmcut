@@ -376,3 +376,15 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, cur
 
     (matrix.to_sprs(), params)
 }
+
+impl Default for SolverConfig {
+    fn default() -> Self {
+        SolverConfig {
+            mode: SolverMode::default(),
+            dx_soln_tolerance: 1e-3,
+            nr_tolerance: 1e-9,
+            nr_step_size: 1e-2,
+            max_nr_iters: 200,
+        }
+    }
+}

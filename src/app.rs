@@ -219,6 +219,10 @@ impl eframe::App for CircuitApp {
                     ui.selectable_value(&mut self.current_file.cfg.mode, SolverMode::Linear, "Linear");
                 });
 
+                if ui.button("Default cfg").clicked() {
+                    self.current_file.cfg = Default::default();
+                }
+
                 ui.separator();
 
                 if let Some(state) = &state {
@@ -244,18 +248,18 @@ impl eframe::App for CircuitApp {
                         let all_wires = state.two_terminal.iter().copied().flatten();
                         self.vis_opt.voltage_scale = all_wires
                             .clone()
-                            .map(|wire| wire.voltage)
+                            .map(|wire| wire.voltage.abs())
                             .max_by(|a, b| {
-                                a.abs()
-                                    .partial_cmp(&b.abs())
+                                a
+                                    .partial_cmp(&b)
                                     .unwrap_or(std::cmp::Ordering::Equal)
                             })
                             .unwrap_or(VisualizationOptions::default().voltage_scale);
                         self.vis_opt.current_scale = all_wires
-                            .map(|wire| wire.current)
+                            .map(|wire| wire.current.abs())
                             .max_by(|a, b| {
-                                a.abs()
-                                    .partial_cmp(&b.abs())
+                                a
+                                    .partial_cmp(&b)
                                     .unwrap_or(std::cmp::Ordering::Equal)
                             })
                             .unwrap_or(VisualizationOptions::default().current_scale);
@@ -464,13 +468,7 @@ impl Default for CircuitFile {
         Self {
             diagram: Diagram::default(),
             dt: 5e-3,
-            cfg: SolverConfig {
-                mode: SolverMode::default(),
-                dx_soln_tolerance: 1e-3,
-                nr_tolerance: 1e-9,
-                nr_step_size: 1e-2,
-                max_nr_iters: 200,
-            },
+            cfg: Default::default(),
         }
     }
 }
