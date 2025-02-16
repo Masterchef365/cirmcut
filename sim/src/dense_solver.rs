@@ -53,7 +53,7 @@ impl PrimitiveDiagramParameterMapping {
         Self {
             n_components: diagram.two_terminal.len(),
             n_voltage_laws: diagram.two_terminal.len(),
-            n_current_laws: diagram.num_nodes - 1,
+            n_current_laws: diagram.num_nodes.saturating_sub(1),
         }
     }
 
@@ -81,7 +81,7 @@ impl PrimitiveDiagramStateVectorMapping {
         Self {
             n_currents: diagram.two_terminal.len(),
             n_voltage_drops: diagram.two_terminal.len(),
-            n_voltages: diagram.num_nodes - 1,
+            n_voltages: diagram.num_nodes.saturating_sub(1),
         }
     }
 
@@ -235,13 +235,15 @@ impl Solver {
             //println!("Param {}", param_vect);
 
             //println!("{:>2}", matrix);
-            let mut a = matrix.to_sprs();
-            a.trim();
+            let a = matrix.to_sprs();
+            //a.trim();
 
             self.soln_vector = param_vect.to_vec();
-            lusol(&a, &mut self.soln_vector, -1, 1e-6);
+            if let Err(e) = lusol(&a, &mut self.soln_vector, -1, 1e-6) {
+                eprintln!("{e}");
+            }
 
-            dbg!(&self.soln_vector);
+            //dbg!(&self.soln_vector);
         }
 
         //dbg!(&self.soln_vector);
