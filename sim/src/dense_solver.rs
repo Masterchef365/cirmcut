@@ -134,7 +134,7 @@ impl Solver {
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
+            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln);
 
             if params.len() == 0 {
                 return Ok(());
@@ -163,7 +163,6 @@ impl Solver {
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();
-            //dbg!(err);
 
             if err > last_err {
                 //return Err("Error value increased!".to_string());
@@ -176,12 +175,15 @@ impl Solver {
             if err < cfg.nr_tolerance {
                 break;
             }
+            //dbg!(err);
 
             last_err = err;
             nr_iters += 1;
         }
 
-        dbg!(nr_iters);
+        if nr_iters > 0 {
+            dbg!(nr_iters);
+        }
 
         [self.soln_vector] = new_state;
 
@@ -206,7 +208,7 @@ impl Solver {
     }
 }
 
-fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_state: &[f64]) -> (Sprs, Vec<f64>) {
+fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, current_iteration: &[f64], last_state: &[f64]) -> (Sprs, Vec<f64>) {
     let n = map.vector_size();
 
     // (params, state)
@@ -326,10 +328,10 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
                 let thermal_voltage = 8.617e-5 * temperature;
                 let vt = thermal_voltage / n;
 
-                let last_voltage = last_state[voltage_drop_idx];
+                let last_voltage = current_iteration[voltage_drop_idx];
                 let vn = last_voltage / vt;
 
-                params[component_idx] = 1.0 - last_state[voltage_drop_idx];
+                params[component_idx] = 1.0 - current_iteration[voltage_drop_idx];
                 matrix.append(component_idx, voltage_drop_idx, -1.0);
                 matrix.append(component_idx, current_idx, (-vn).exp());
             }

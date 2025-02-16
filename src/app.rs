@@ -192,12 +192,12 @@ impl eframe::App for CircuitApp {
 
             ui.add(
                 DragValue::new(&mut self.current_file.cfg.max_nr_iters)
-                    .prefix("Max Solver iters: "),
+                    .prefix("Max NR iters: "),
             );
             ui.add(
                 DragValue::new(&mut self.current_file.cfg.step_size)
                     .speed(1e-6)
-                    .prefix("Solver step size: "),
+                    .prefix("NR step size: "),
             );
             ui.add(
                 DragValue::new(&mut self.current_file.cfg.nr_tolerance)
@@ -207,7 +207,7 @@ impl eframe::App for CircuitApp {
             ui.add(
                 DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
                     .speed(1e-6)
-                    .prefix("Matrix dx solve tolerance: "),
+                    .prefix("Matrix solve tol: "),
             );
 
 
