@@ -104,6 +104,16 @@ impl PrimitiveDiagramStateVectorMapping {
     }
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct NewtonRaphsonConfig {
+    pub max_nr_iters: usize, 
+    pub step_size: f64,
+    /// NR-Iterate until error reaches this value
+    pub nr_tolerance: f64,
+    /// When solving F Delta x = -f, which tolerance do we solve the system to?
+    pub dx_soln_tolerance: f64,
+}
+
 impl Solver {
     pub fn new(diagram: &PrimitiveDiagram) -> Self {
         let map = PrimitiveDiagramMapping::new(diagram);
@@ -115,12 +125,13 @@ impl Solver {
     }
 
     /// Note: Assumes diagram is compatible with the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, nr_iters: usize, step_size: f64) -> Result<(), String> {
+    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &NewtonRaphsonConfig) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
 
-        for _ in 0..nr_iters {
+        let mut last_err = 9e99;
+        for _ in 0..cfg.max_nr_iters {
             let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
 
             if params.len() == 0 {
@@ -149,14 +160,27 @@ impl Solver {
 
             let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
 
+            lusol(&matrix, &mut delta, -1, 1e-3)?;
+            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.step_size);
+
             let err = delta.iter().map(|f| f*f).sum::<f64>();
             dbg!(err);
 
-            lusol(&matrix, &mut delta, -1, 1e-3)?;
+            if err > last_err {
+                //return Err("Error value increased!".to_string());
+                eprintln!("Error value increased!");
+
+            }
+
+            if err < cfg.nr_tolerance {
+                break;
+            }
+
+            last_err = err;
+
 
             //dbg!(&delta);
 
-            new_state[0].iter_mut().zip(delta).for_each(|(n, delta)| *n += delta * step_size);
         }
 
         [self.soln_vector] = new_state;

@@ -5,7 +5,7 @@ use std::{
 };
 
 use cirmcut_sim::{
-    dense_solver::Solver, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent,
+    dense_solver::{NewtonRaphsonConfig, Solver}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent,
     TwoTerminalComponent,
 };
 use egui::{
@@ -27,9 +27,6 @@ pub struct CircuitApp {
 
     current_file: CircuitFile,
 
-    step_size: f64,
-    nr_iters: usize,
-
     #[serde(skip)]
     sim: Option<Solver>,
 
@@ -39,6 +36,7 @@ pub struct CircuitApp {
 #[derive(serde::Deserialize, serde::Serialize)]
 struct CircuitFile {
     diagram: Diagram,
+    cfg: NewtonRaphsonConfig,
     dt: f64,
 }
 
@@ -46,8 +44,6 @@ impl Default for CircuitApp {
     fn default() -> Self {
         Self {
             sim: None,
-            step_size: 1e-3,
-            nr_iters: 20,
             editor: DiagramEditor::new(),
             current_file: CircuitFile::default(),
             paused: false,
@@ -181,16 +177,30 @@ impl eframe::App for CircuitApp {
                     .speed(1e-7)
                     .suffix(" s"),
             );
+
+            ui.separator();
+            ui.strong("Advanced");
+
             ui.add(
-                DragValue::new(&mut self.nr_iters)
-                    .speed(1e-2)
-                    .prefix("Solver iters: "),
+                DragValue::new(&mut self.current_file.cfg.max_nr_iters)
+                    .prefix("Max Solver iters: "),
             );
             ui.add(
-                DragValue::new(&mut self.step_size)
+                DragValue::new(&mut self.current_file.cfg.step_size)
                     .speed(1e-6)
                     .prefix("Solver step size: "),
             );
+            ui.add(
+                DragValue::new(&mut self.current_file.cfg.nr_tolerance)
+                    .speed(1e-6)
+                    .prefix("NR tolerance: "),
+            );
+            ui.add(
+                DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
+                    .speed(1e-6)
+                    .prefix("Matrix dx solve tolerance: "),
+            );
+
 
             ui.separator();
 
@@ -327,8 +337,7 @@ impl eframe::App for CircuitApp {
                 if let Err(e) = sim.step(
                     self.current_file.dt,
                     &self.current_file.diagram.to_primitive_diagram(),
-                    self.nr_iters,
-                    self.step_size,
+                    &self.current_file.cfg,
                 ) {
                     eprintln!("{}", e);
                     ctx.debug_painter().text(
@@ -394,6 +403,12 @@ impl Default for CircuitFile {
         Self {
             diagram: Diagram::default(),
             dt: 1e-6,
+            cfg: NewtonRaphsonConfig { 
+                dx_soln_tolerance: 1e-3,
+                nr_tolerance: 1e-3,
+                step_size: 1e-3,
+                max_nr_iters: 20,
+            }
         }
     }
 }
