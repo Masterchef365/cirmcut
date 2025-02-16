@@ -226,7 +226,7 @@ pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2
 
     let plate_radius = size;
 
-    begin_wire.line_segment(
+    end_wire.line_segment(
         painter,
         end_segment - x * plate_radius,
         end_segment + x * plate_radius,
@@ -239,7 +239,7 @@ pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2
             begin_segment + x * plate_radius,
             begin_segment - x * plate_radius,
         ],
-        end_wire.color(selected),
+        begin_wire.color(selected),
         Stroke::NONE,
     ));
 
