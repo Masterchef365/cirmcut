@@ -9,8 +9,7 @@ use cirmcut_sim::{
     TwoTerminalComponent,
 };
 use egui::{
-    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2,
-    ViewportCommand,
+    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, RichText, ScrollArea, Sense, Stroke, Ui, Vec2, ViewportCommand
 };
 
 use crate::circuit_widget::{
@@ -30,6 +29,9 @@ pub struct CircuitApp {
     #[serde(skip)]
     sim: Option<Solver>,
 
+    #[serde(skip)]
+    error: Option<String>,
+
     paused: bool,
 }
 
@@ -43,6 +45,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
+            error: None,
             sim: None,
             editor: DiagramEditor::new(),
             current_file: CircuitFile::default(),
@@ -177,6 +180,10 @@ impl eframe::App for CircuitApp {
                     .speed(1e-7)
                     .suffix(" s"),
             );
+
+            if let Some(error) = &self.error {
+                ui.label(RichText::new(error).color(Color32::RED));
+            }
 
             ui.separator();
             ui.strong("Advanced");
@@ -340,13 +347,10 @@ impl eframe::App for CircuitApp {
                     &self.current_file.cfg,
                 ) {
                     eprintln!("{}", e);
-                    ctx.debug_painter().text(
-                        Pos2::new(200.0, 200.0),
-                        Align2::CENTER_CENTER,
-                        &e,
-                        Default::default(),
-                        Color32::RED,
-                    );
+                    self.error = Some(e);
+                    self.paused = true;
+                } else {
+                    self.error = None;
                 }
             }
         }

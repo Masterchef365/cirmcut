@@ -165,8 +165,8 @@ impl Solver {
             dbg!(err);
 
             if err > last_err {
-                //return Err("Error value increased!".to_string());
-                eprintln!("Error value increased! {}", err - last_err);
+                return Err("Error value increased!".to_string());
+                //eprintln!("Error value increased! {}", err - last_err);
             }
 
             // w += dw * step size
