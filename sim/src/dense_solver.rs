@@ -185,7 +185,11 @@ impl Solver {
                     //matrix[(component_idx, voltage_drop_idx)] = 1.0;
                     let [begin_node_idx, end_node_idx] = node_indices;
 
-                    if !is_open {
+                    if is_open {
+                        // Set current through this component to zero
+                        matrix[(component_idx, current_idx)] = 1.0;
+                    } else {
+                        // Set voltages of connected nodes to be equal
                         if let Some(voltage_idx) = self.map.state_map.voltages().nth(end_node_idx) {
                             matrix[(component_idx, voltage_idx)] = 1.0;
                         }
@@ -193,8 +197,6 @@ impl Solver {
                         if let Some(voltage_idx) = self.map.state_map.voltages().nth(begin_node_idx) {
                             matrix[(component_idx, voltage_idx)] = -1.0;
                         }
-                    } else {
-                        //matrix[(component_idx, voltage_drop_idx)] = 1.0;
                     }
                 },
 
