@@ -132,12 +132,12 @@ impl Solver {
 
         let mut last_err = 9e99;
         for _ in 0..cfg.max_nr_iters {
+            // Calculate A(w_n(K)), b(w_n(K))
             let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
 
             if params.len() == 0 {
                 return Ok(());
             }
-
 
             let mut dense_b = Trpl::new();
             for (i, val) in params.iter().enumerate() {
@@ -152,35 +152,31 @@ impl Solver {
             }
             let new_state_sparse = new_state_sparse.to_sprs();
 
+            // Calculate -f(w_n(K)) = b(w_n(K)) - A(w_n(K)) w_n(K)
             let ax = &matrix * &new_state_sparse;
-            //dbg!(ax.to_dense());
-            //dbg!(dense_b.to_dense());
-
             let f = dense_b - ax;
 
+            // Solve A(w_n(K)) dw = -f for dw
             let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
-
             lusol(&matrix, &mut delta, -1, 1e-3)?;
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.step_size);
 
+            // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();
             dbg!(err);
 
             if err > last_err {
                 //return Err("Error value increased!".to_string());
-                eprintln!("Error value increased!");
-
+                eprintln!("Error value increased! {}", err - last_err);
             }
+
+            // w += dw * step size
+            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.step_size);
 
             if err < cfg.nr_tolerance {
                 break;
             }
 
             last_err = err;
-
-
-            //dbg!(&delta);
-
         }
 
         [self.soln_vector] = new_state;

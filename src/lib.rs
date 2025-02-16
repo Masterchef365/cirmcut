@@ -36,8 +36,8 @@ fn to_metric_prefix(value: f64, unit: char) -> String {
     let prefix = prefixes.iter().find(|&&(e, _)| e == exponent);
 
     if let Some((e, symbol)) = prefix {
-        format!("{} {}{unit}", value / 10_f64.powi(*e), symbol)
+        format!("{:.03} {}{unit}", value / 10_f64.powi(*e), symbol)
     } else {
-        format!("{} {unit}", value) // Fallback in case exponent is out of range
+        format!("{:.03} {unit}", value) // Fallback in case exponent is out of range
     }
 }
