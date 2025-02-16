@@ -40,11 +40,10 @@ struct CircuitFile {
 
 impl Default for CircuitApp {
     fn default() -> Self {
-        let diagram = Diagram::default();
         Self {
             sim: None,
             editor: DiagramEditor::new(),
-            current_file: CircuitFile { diagram, dt: 1e-6 },
+            current_file: CircuitFile::default(),
             paused: false,
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
             debug_draw: false,
@@ -127,6 +126,10 @@ impl eframe::App for CircuitApp {
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
+                    if ui.button("New").clicked() {
+                        self.current_file = CircuitFile::default();
+                    }
+                    ui.separator();
                     if ui.button("Open").clicked() {
                         self.open_file(ui.ctx());
                     }
@@ -334,5 +337,11 @@ fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> Dia
             .iter()
             .map(|(indices, _)| indices.map(|_| DiagramWireState::default()))
             .collect(),
+    }
+}
+
+impl Default for CircuitFile {
+    fn default() -> Self {
+         Self { diagram: Diagram::default(), dt: 1e-6 }
     }
 }

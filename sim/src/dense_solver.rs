@@ -199,12 +199,16 @@ impl Solver {
                         }
                     }
                 },
-
                 TwoTerminalComponent::Battery(voltage) => {
                     matrix[(component_idx, voltage_drop_idx)] = -1.0;
                     param_vect[component_idx] = voltage;
+                },
+                TwoTerminalComponent::Capacitor(capacitance) => {
+                    matrix[(component_idx, current_idx)] = -dt;
+                    matrix[(component_idx, voltage_drop_idx)] = capacitance;
+                    param_vect[component_idx] = self.soln_vector[voltage_drop_idx] * capacitance;
                 }
-                _ => (),
+                other => eprintln!("{other:?} is not supported yet!!"),
             }
 
         }

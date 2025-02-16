@@ -277,11 +277,16 @@ impl DiagramEditor {
                     state.three_terminal[idx],
                 )
             } else {
+                if let Some(comp) = diagram.two_terminal.get_mut(idx) {
                 edit_twoterminal_component(
                     ui,
-                    &mut diagram.two_terminal[idx].1,
+                    &mut comp.1,
                     state.two_terminal[idx],
                 )
+                } else {
+                    eprintln!("Warning: Couldn't find {idx} in diagram");
+                    ui.response()
+                }
             }
         } else {
             ui.weak("Click on a component to edit")
