@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, time::Instant};
 
 use ndarray::{linalg::kron, Array1, Array2};
 use rsparse::{data::Trpl, lusol};
@@ -226,6 +226,21 @@ impl Solver {
                     matrix.append(component_idx, current_idx, -inductance);
                     param_vect[component_idx] = -self.soln_vector[current_idx] * inductance;
                 }
+                TwoTerminalComponent::Diode => {
+                    // Stolen from falstad.
+                    //let sat_current = 171.4352819281e-9;
+                    let n = 2.0;
+                    let temperature = 273.15 + 22.0;
+                    let thermal_voltage = 8.617e-5 * temperature;
+                    let vt = thermal_voltage / n;
+
+                    let last_voltage = self.soln_vector[voltage_drop_idx];
+                    let vn = last_voltage / thermal_voltage;
+
+                    param_vect[component_idx] = 1.0 - self.soln_vector[voltage_drop_idx];
+                    matrix.append(component_idx, voltage_drop_idx, -1.0);
+                    matrix.append(component_idx, current_idx, (-vn).exp());
+                }
                 other => eprintln!("{other:?} is not supported yet!!"),
             }
         }
@@ -239,9 +254,13 @@ impl Solver {
             //a.trim();
 
             self.soln_vector = param_vect.to_vec();
-            if let Err(e) = lusol(&a, &mut self.soln_vector, -1, 1e-6) {
+
+            let start = Instant::now();
+            if let Err(e) = lusol(&a, &mut self.soln_vector, -1, 1e-3) {
                 eprintln!("{e}");
             }
+            let end = start.elapsed();
+            println!("Time: {} ms", end.as_secs_f32() * 1000.0);
 
             //dbg!(&self.soln_vector);
         }
