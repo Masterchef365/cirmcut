@@ -113,6 +113,7 @@ impl CircuitApp {
             if let Some(path) = maybe_path {
                 if let Some(data) = read_file(&path) {
                     self.current_file = data;
+                    self.sim = None;
                 }
             }
 
@@ -140,6 +141,7 @@ impl eframe::App for CircuitApp {
                 ui.menu_button("File", |ui| {
                     if ui.button("New").clicked() {
                         self.current_file = CircuitFile::default();
+                        self.sim = None;
                     }
                     ui.separator();
                     if ui.button("Open").clicked() {
@@ -406,7 +408,7 @@ impl Default for CircuitFile {
     fn default() -> Self {
         Self {
             diagram: Diagram::default(),
-            dt: 1e-6,
+            dt: 5e-3,
             cfg: NewtonRaphsonConfig { 
                 dx_soln_tolerance: 1e-3,
                 nr_tolerance: 1e-3,

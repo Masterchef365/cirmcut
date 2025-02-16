@@ -131,6 +131,7 @@ impl Solver {
         let mut new_state = [prev_time_step_soln.clone()];
 
         let mut last_err = 9e99;
+        let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
             let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
@@ -162,10 +163,10 @@ impl Solver {
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();
-            dbg!(err);
+            //dbg!(err);
 
             if err > last_err {
-                return Err("Error value increased!".to_string());
+                //return Err("Error value increased!".to_string());
                 //eprintln!("Error value increased! {}", err - last_err);
             }
 
@@ -177,7 +178,10 @@ impl Solver {
             }
 
             last_err = err;
+            nr_iters += 1;
         }
+
+        dbg!(nr_iters);
 
         [self.soln_vector] = new_state;
 
