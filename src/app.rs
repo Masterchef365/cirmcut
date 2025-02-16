@@ -14,7 +14,7 @@ use egui::{
 
 use crate::circuit_widget::{
     cellpos_to_egui, draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState,
-    DiagramWireState,
+    DiagramWireState, VisualizationOptions,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -25,6 +25,7 @@ pub struct CircuitApp {
     current_path: Option<PathBuf>,
 
     current_file: CircuitFile,
+    vis_opt: VisualizationOptions,
 
     #[serde(skip)]
     sim: Option<Solver>,
@@ -45,6 +46,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
+            vis_opt: VisualizationOptions::default(),
             error: None,
             sim: None,
             editor: DiagramEditor::new(),
@@ -217,6 +219,11 @@ impl eframe::App for CircuitApp {
                 self.editor
                     .edit_component(ui, &mut self.current_file.diagram, state);
             }
+
+            ui.separator();
+            ui.strong("Visualization");
+            ui.add(DragValue::new(&mut self.vis_opt.voltage_scale).prefix("Voltage scale: ").speed(1e-2));
+            ui.add(DragValue::new(&mut self.vis_opt.current_scale).prefix("Current scale: ").speed(1e-2));
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
@@ -317,6 +324,7 @@ impl eframe::App for CircuitApp {
                             &mut self.current_file.diagram,
                             &state,
                             self.debug_draw,
+                            &self.vis_opt,
                         );
                     }
                 });

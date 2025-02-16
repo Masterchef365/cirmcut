@@ -15,6 +15,15 @@ use crate::{components::{
 
 pub const CELL_SIZE: f32 = 100.0;
 
+#[derive(Copy, Clone, Debug)]
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct VisualizationOptions {
+    /// Volts
+    pub voltage_scale: f64,
+    /// Amps
+    pub current_scale: f64,
+}
+
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct Diagram {
     pub two_terminal: Vec<([CellPos; 2], TwoTerminalComponent)>,
@@ -187,7 +196,7 @@ impl DiagramEditor {
         self.selected = None;
     }
 
-    pub fn edit(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState, debug_draw: bool) -> bool {
+    pub fn edit(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState, debug_draw: bool, vis: &VisualizationOptions) -> bool {
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
@@ -213,6 +222,7 @@ impl DiagramEditor {
                 *pos,
                 Id::new("threebody").with(idx),
                 self.selected == Some((idx, true)),
+                vis,
             );
             if ret.clicked() {
                 new_selection = Some((idx, true));
@@ -234,6 +244,7 @@ impl DiagramEditor {
                 resp,
                 self.selected == Some((idx, false)),
                 debug_draw,
+                vis,
             ) {
                 destructive_change = true;
             }
@@ -252,7 +263,7 @@ impl DiagramEditor {
                 *wires,
                 resp,
                 self.selected == Some((idx, true)),
-                debug_draw,
+                vis,
             ) {
                 destructive_change = true;
             }
@@ -333,6 +344,7 @@ fn interact_with_twoterminal(
     body_resp: Response,
     selected: bool,
     debug_draw: bool,
+    vis: &VisualizationOptions,
 ) -> bool {
     let id = Id::new("twoterminal");
     let begin = cellpos_to_egui(pos[0]);
@@ -444,6 +456,7 @@ fn interact_with_twoterminal(
         wires,
         *component,
         selected,
+        vis,
     );
 
     destructive_change
@@ -454,6 +467,7 @@ fn interact_with_threeterminal_body(
     pos: [CellPos; 3],
     id: Id,
     selected: bool,
+    vis: &VisualizationOptions,
 ) -> egui::Response {
     let a = cellpos_to_egui(pos[0]);
     let b = cellpos_to_egui(pos[1]);
@@ -476,7 +490,7 @@ fn interact_with_threeterminal(
     wires: [DiagramWireState; 3],
     body_resp: Response,
     selected: bool,
-    debug_draw: bool,
+    vis: &VisualizationOptions,
 ) -> bool {
     let id = Id::new("threeterminal");
     let a = cellpos_to_egui(pos[0]);
@@ -568,7 +582,7 @@ fn interact_with_threeterminal(
     let b = b + b_offset;
     let c = c + c_offset;
 
-    draw_threeterminal_component(ui.painter(), [a, b, c], wires, component, selected);
+    draw_threeterminal_component(ui.painter(), [a, b, c], wires, component, selected, vis);
 
     destructive_change
 }
@@ -582,34 +596,34 @@ impl DiagramWireState {
         }
     }
 
-    pub fn color(&self, selected: bool) -> Color32 {
+    pub fn color(&self, selected: bool, vis: &VisualizationOptions) -> Color32 {
         if selected {
             Color32::from_rgb(0x00, 0xff, 0xff)
         } else {
-            voltage_color(self.voltage)
+            voltage_color(self.voltage / vis.voltage_scale)
         }
     }
 
-    pub fn wire(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
-        self.line_segment(painter, a, b, selected);
-        self.current(painter, a, b);
+    pub fn wire(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+        self.line_segment(painter, a, b, selected, vis);
+        self.current(painter, a, b, vis);
     }
 
-    pub fn arrow(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, direction: bool) {
+    pub fn arrow(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, direction: bool, vis: &VisualizationOptions) {
         {
             let (rev_a, rev_b) = if direction { (a, b) } else { (b, a) };
-            self.arrow_segment(painter, rev_a, rev_b, selected);
+            self.arrow_segment(painter, rev_a, rev_b, selected, vis);
         }
 
-        self.current(painter, a, b);
+        self.current(painter, a, b, vis);
     }
 
-    pub fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
-        painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
+    pub fn line_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+        painter.line_segment([a, b], Stroke::new(3., self.color(selected, vis)));
     }
 
-    pub fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool) {
-        painter.line_segment([a, b], Stroke::new(3., self.color(selected)));
+    pub fn arrow_segment(&self, painter: &Painter, a: Pos2, b: Pos2, selected: bool, vis: &VisualizationOptions) {
+        painter.line_segment([a, b], Stroke::new(3., self.color(selected, vis)));
 
         let y = (b - a).normalized();
         let x = y.rot90();
@@ -619,13 +633,13 @@ impl DiagramWireState {
 
         painter.add(Shape::convex_polygon(
             vec![a, a + vp, a + vm],
-            self.color(selected),
+            self.color(selected, vis),
             Stroke::NONE,
         ));
         //painter.arrow(a, b - a, Stroke::new(3., self.color(selected)));
     }
 
-    pub fn current(&self, painter: &Painter, a: Pos2, b: Pos2) {
+    pub fn current(&self, painter: &Painter, a: Pos2, b: Pos2, vis: &VisualizationOptions) {
         if self.current == 0.0 {
             return;
         }
@@ -637,7 +651,7 @@ impl DiagramWireState {
 
         let time = painter
             .ctx()
-            .input(|r| r.time * self.current.abs() as f64)
+            .input(|r| r.time * self.current.abs() as f64 / vis.current_scale)
             .fract() as f32;
 
         let rect_size = 5.0;
@@ -681,13 +695,14 @@ fn draw_threeterminal_component(
     wires: [DiagramWireState; 3],
     component: ThreeTerminalComponent,
     selected: bool,
+    vis: &VisualizationOptions
 ) {
     match component {
         ThreeTerminalComponent::PTransistor(_) => {
-            draw_transistor(painter, pos, wires, selected, true)
+            draw_transistor(painter, pos, wires, selected, true, vis)
         }
         ThreeTerminalComponent::NTransistor(_) => {
-            draw_transistor(painter, pos, wires, selected, false)
+            draw_transistor(painter, pos, wires, selected, false, vis)
         }
     }
 }
@@ -698,17 +713,18 @@ fn draw_twoterminal_component(
     wires: [DiagramWireState; 2],
     component: TwoTerminalComponent,
     selected: bool,
+    vis: &VisualizationOptions,
 ) {
     draw_component_value(painter, pos, component);
     match component {
-        TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected),
-        TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected),
-        TwoTerminalComponent::Inductor(_) => draw_inductor(painter, pos, wires, selected),
-        TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected),
-        TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected),
-        TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected),
+        TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected, vis),
+        TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Inductor(_) => draw_inductor(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Switch(is_open) => {
-            draw_switch(painter, pos, wires, selected, is_open)
+            draw_switch(painter, pos, wires, selected, is_open, vis)
         }
     }
 }
@@ -767,4 +783,10 @@ fn edit_twoterminal_component(
     ui.label(format!("I: {}", to_metric_prefix(wires[0].current, 'A')));
 
     ret
+}
+
+impl Default for VisualizationOptions {
+    fn default() -> Self {
+        Self { voltage_scale: 5.0, current_scale: 5.0 }
+    }
 }

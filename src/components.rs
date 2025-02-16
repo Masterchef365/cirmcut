@@ -3,7 +3,7 @@ use std::f32::consts::{PI, TAU};
 use cirmcut_sim::TwoTerminalComponent;
 use egui::{emath::TSTransform, Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 
-use crate::{circuit_widget::{DiagramWireState, CELL_SIZE}, to_metric_prefix};
+use crate::{circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE}, to_metric_prefix};
 
 pub fn draw_transistor(
     painter: &Painter,
@@ -11,6 +11,7 @@ pub fn draw_transistor(
     wires: [DiagramWireState; 3],
     selected: bool,
     p_type: bool,
+    vis: &VisualizationOptions
 ) {
     let [emitter_in, base_in, collector_in] = pos;
     let [emitter_wire, base_wire, collector_wire] = wires;
@@ -24,12 +25,13 @@ pub fn draw_transistor(
     let base_input_tap = center + orient_y * 0.25;
     let junction_radius = 0.25;
 
-    base_wire.wire(painter, base_in, base_input_tap, selected);
+    base_wire.wire(painter, base_in, base_input_tap, selected, vis);
     base_wire.floating().wire(
         painter,
         base_input_tap - orient_x * junction_radius,
         base_input_tap + orient_x * junction_radius,
         selected,
+        vis,
     );
 
     let conn_radius = 0.10;
@@ -44,18 +46,20 @@ pub fn draw_transistor(
         base_input_tap + ty_orient * conn_radius,
         selected,
         p_type,
+        vis,
     );
 
-    emitter_wire.wire(painter, emitter_in, emitter_input_tap, selected);
+    emitter_wire.wire(painter, emitter_in, emitter_input_tap, selected, vis);
 
     collector_wire.wire(
         painter,
         collector_input_tap,
         base_input_tap - ty_orient * conn_radius,
         selected,
+        vis,
     );
 
-    collector_wire.wire(painter, collector_in, collector_input_tap, selected);
+    collector_wire.wire(painter, collector_in, collector_input_tap, selected, vis);
 }
 
 pub fn draw_resistor(
@@ -63,6 +67,7 @@ pub fn draw_resistor(
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
     selected: bool,
+    vis: &VisualizationOptions,
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -72,8 +77,8 @@ pub fn draw_resistor(
     let y = y * CELL_SIZE;
     let x = y.rot90();
 
-    begin_wire.line_segment(painter, begin, begin_segment, selected);
-    end_wire.line_segment(painter, end_segment, end, selected);
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
 
     let wiggles = 6;
 
@@ -94,12 +99,12 @@ pub fn draw_resistor(
         };
         begin_wire
             .lerp_voltage(&end_wire, f as f64)
-            .line_segment(painter, last, new_pos, selected);
+            .line_segment(painter, last, new_pos, selected, vis);
 
         last = new_pos;
     }
 
-    begin_wire.current(painter, begin, end);
+    begin_wire.current(painter, begin, end, vis);
 }
 
 fn center_cell_segment(a: Pos2, b: Pos2, len: f32) -> (Pos2, Pos2, Vec2) {
@@ -115,6 +120,7 @@ pub fn draw_inductor(
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
     selected: bool,
+    vis: &VisualizationOptions,
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -124,8 +130,8 @@ pub fn draw_inductor(
     let y = y * CELL_SIZE;
     let x = y.rot90();
 
-    begin_wire.line_segment(painter, begin, begin_segment, selected);
-    end_wire.line_segment(painter, end_segment, end, selected);
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
 
     let steps = 100;
 
@@ -145,12 +151,12 @@ pub fn draw_inductor(
         let new_pos = begin_segment + x * xf + y * yf;
         begin_wire
             .lerp_voltage(&end_wire, f as f64)
-            .line_segment(painter, last, new_pos, selected);
+            .line_segment(painter, last, new_pos, selected, vis);
 
         last = new_pos;
     }
 
-    begin_wire.current(painter, begin, end);
+    begin_wire.current(painter, begin, end, vis);
 }
 
 fn draw_capacitorlike(
@@ -160,6 +166,7 @@ fn draw_capacitorlike(
     selected: bool,
     plate_a: f32,
     plate_b: f32,
+    vis: &VisualizationOptions,
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -170,14 +177,15 @@ fn draw_capacitorlike(
     let y = y * CELL_SIZE;
     let x = y.rot90();
 
-    begin_wire.line_segment(painter, begin, begin_segment, selected);
-    end_wire.line_segment(painter, end_segment, end, selected);
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
 
     begin_wire.line_segment(
         painter,
         begin_segment - x * plate_a,
         begin_segment + x * plate_a,
         selected,
+        vis
     );
 
     end_wire.line_segment(
@@ -185,9 +193,10 @@ fn draw_capacitorlike(
         end_segment - x * plate_b,
         end_segment + x * plate_b,
         selected,
+        vis,
     );
 
-    begin_wire.current(painter, begin, end);
+    begin_wire.current(painter, begin, end, vis);
 }
 
 pub fn draw_capacitor(
@@ -195,9 +204,10 @@ pub fn draw_capacitor(
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
     selected: bool,
+    vis: &VisualizationOptions,
 ) {
     let radius = 0.2;
-    draw_capacitorlike(painter, pos, wires, selected, radius, radius);
+    draw_capacitorlike(painter, pos, wires, selected, radius, radius, vis);
 }
 
 pub fn draw_battery(
@@ -205,11 +215,12 @@ pub fn draw_battery(
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
     selected: bool,
+    vis: &VisualizationOptions,
 ) {
-    draw_capacitorlike(painter, pos, wires, selected, 0.1, 0.2);
+    draw_capacitorlike(painter, pos, wires, selected, 0.1, 0.2, vis);
 }
 
-pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2], selected: bool) {
+pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2], selected: bool, vis: &VisualizationOptions) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
 
@@ -221,8 +232,8 @@ pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2
     let y = y * CELL_SIZE;
     let x = y.rot90();
 
-    begin_wire.line_segment(painter, begin, begin_segment, selected);
-    end_wire.line_segment(painter, end_segment, end, selected);
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
 
     let plate_radius = size;
 
@@ -231,6 +242,7 @@ pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2
         end_segment - x * plate_radius,
         end_segment + x * plate_radius,
         selected,
+        vis,
     );
 
     painter.add(Shape::convex_polygon(
@@ -239,11 +251,11 @@ pub fn draw_diode(painter: &Painter, pos: [Pos2; 2], wires: [DiagramWireState; 2
             begin_segment + x * plate_radius,
             begin_segment - x * plate_radius,
         ],
-        begin_wire.color(selected),
+        begin_wire.color(selected, vis),
         Stroke::NONE,
     ));
 
-    begin_wire.current(painter, begin, end);
+    begin_wire.current(painter, begin, end, vis);
 }
 
 pub fn draw_switch(
@@ -252,6 +264,7 @@ pub fn draw_switch(
     wires: [DiagramWireState; 2],
     selected: bool,
     is_open: bool,
+    vis: &VisualizationOptions
 ) {
     let [begin, end] = pos;
     let [begin_wire, end_wire] = wires;
@@ -261,8 +274,8 @@ pub fn draw_switch(
     let y = y * CELL_SIZE;
     let x = y.rot90();
 
-    begin_wire.line_segment(painter, begin, begin_segment, selected);
-    end_wire.line_segment(painter, end_segment, end, selected);
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
 
     let rot = if is_open { PI / 6. } else { 0.0 };
 
@@ -273,7 +286,7 @@ pub fn draw_switch(
         Stroke::new(5., Color32::WHITE),
     );
 
-    begin_wire.current(painter, begin, end);
+    begin_wire.current(painter, begin, end, vis);
 }
 
 pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTerminalComponent) {
