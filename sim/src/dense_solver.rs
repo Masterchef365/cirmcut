@@ -207,6 +207,11 @@ impl Solver {
                     matrix[(component_idx, current_idx)] = -dt;
                     matrix[(component_idx, voltage_drop_idx)] = capacitance;
                     param_vect[component_idx] = self.soln_vector[voltage_drop_idx] * capacitance;
+                },
+                TwoTerminalComponent::Inductor(inductance) => {
+                    matrix[(component_idx, voltage_drop_idx)] = dt;
+                    matrix[(component_idx, current_idx)] = -inductance;
+                    param_vect[component_idx] = self.soln_vector[current_idx] * inductance;
                 }
                 other => eprintln!("{other:?} is not supported yet!!"),
             }
