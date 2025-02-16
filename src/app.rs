@@ -72,6 +72,8 @@ impl CircuitApp {
     }
 
     fn save_file(&mut self, ctx: &egui::Context) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
         let maybe_path = match &self.current_path {
             Some(current) => Some(current.clone()),
             None => rfd::FileDialog::new()
@@ -88,11 +90,14 @@ impl CircuitApp {
         }
 
         self.update_title(ctx);
+        }
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
         //self.save_file(ctx);
 
+        #[cfg(not(target_arch = "wasm32"))]
+        {
         let maybe_path = match &self.current_path {
             Some(current) => Some(current.clone()),
             None => rfd::FileDialog::new()
@@ -107,6 +112,7 @@ impl CircuitApp {
         }
 
         self.update_title(ctx);
+        }
     }
 
     fn update_title(&self, ctx: &egui::Context) {
