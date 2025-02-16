@@ -1,7 +1,7 @@
 use std::ops::Range;
 
-use ndarray::{Array1, Array2};
-use rsparse::data::Trpl;
+use ndarray::{linalg::kron, Array1, Array2};
+use rsparse::{data::Trpl, lusol};
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
@@ -230,10 +230,23 @@ impl Solver {
             }
         }
 
-        //println!("Param {}", param_vect);
 
-        //println!("{:>2}", matrix);
-        let sprs = matrix.to_sprs();
+        if n != 0 {
+            //println!("Param {}", param_vect);
+
+            //println!("{:>2}", matrix);
+            let mut a = matrix.to_sprs();
+            a.trim();
+
+            self.soln_vector = param_vect.to_vec();
+            lusol(&a, &mut self.soln_vector, -1, 1e-6);
+
+            dbg!(&self.soln_vector);
+        }
+
+        //dbg!(&self.soln_vector);
+
+
         //sprs.
 
         /*
