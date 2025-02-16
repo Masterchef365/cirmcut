@@ -272,7 +272,7 @@ impl DiagramEditor {
 
     pub fn edit_component(&mut self, ui: &mut Ui, diagram: &mut Diagram, state: &DiagramState) -> Response {
         if let Some((idx, is_threeterminal)) = self.selected {
-            if is_threeterminal {
+            let resp = if is_threeterminal {
                 edit_threeterminal_component(
                     ui,
                     &mut diagram.three_terminal[idx].1,
@@ -289,7 +289,13 @@ impl DiagramEditor {
                     eprintln!("Warning: Couldn't find {idx} in diagram");
                     ui.response()
                 }
+            };
+
+            if ui.button("Delete").clicked() {
+                self.delete(diagram);
             }
+
+            resp
         } else {
             ui.weak("Click on a component to edit")
         }
@@ -756,7 +762,6 @@ fn edit_twoterminal_component(
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
     };
 
-    ui.separator();
     let voltage = wires[1].voltage - wires[0].voltage;
     ui.label(format!("Vd: {}", to_metric_prefix(voltage, 'V')));
     ui.label(format!("I: {}", to_metric_prefix(wires[0].current, 'A')));
