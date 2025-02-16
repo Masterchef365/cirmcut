@@ -9,7 +9,8 @@ use cirmcut_sim::{
     TwoTerminalComponent,
 };
 use egui::{
-    Color32, DragValue, Id, Key, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2, ViewportCommand
+    Align2, Color32, DragValue, Id, Key, Pos2, Rect, Response, ScrollArea, Sense, Stroke, Ui, Vec2,
+    ViewportCommand,
 };
 
 use crate::circuit_widget::{
@@ -79,22 +80,22 @@ impl CircuitApp {
     fn save_file(&mut self, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-        let maybe_path = match &self.current_path {
-            Some(current) => Some(current.clone()),
-            None => rfd::FileDialog::new()
-                .add_filter("CKT", &["ckt"])
-                .save_file(),
-        };
+            let maybe_path = match &self.current_path {
+                Some(current) => Some(current.clone()),
+                None => rfd::FileDialog::new()
+                    .add_filter("CKT", &["ckt"])
+                    .save_file(),
+            };
 
-        if let Some(mut path) = maybe_path {
-            if path.extension() != Some(OsStr::new("ckt")) {
-                path.set_extension("ckt");
+            if let Some(mut path) = maybe_path {
+                if path.extension() != Some(OsStr::new("ckt")) {
+                    path.set_extension("ckt");
+                }
+
+                write_file(&self.current_file, &path);
             }
 
-            write_file(&self.current_file, &path);
-        }
-
-        self.update_title(ctx);
+            self.update_title(ctx);
         }
     }
 
@@ -103,20 +104,20 @@ impl CircuitApp {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-        let maybe_path = match &self.current_path {
-            Some(current) => Some(current.clone()),
-            None => rfd::FileDialog::new()
-                .add_filter("CKT", &["ckt"])
-                .pick_file(),
-        };
+            let maybe_path = match &self.current_path {
+                Some(current) => Some(current.clone()),
+                None => rfd::FileDialog::new()
+                    .add_filter("CKT", &["ckt"])
+                    .pick_file(),
+            };
 
-        if let Some(path) = maybe_path {
-            if let Some(data) = read_file(&path) {
-                self.current_file = data;
+            if let Some(path) = maybe_path {
+                if let Some(data) = read_file(&path) {
+                    self.current_file = data;
+                }
             }
-        }
 
-        self.update_title(ctx);
+            self.update_title(ctx);
         }
     }
 
@@ -158,24 +159,43 @@ impl eframe::App for CircuitApp {
         // TODO: Cache this?
         let state = self.state();
 
+        let mut single_step = false;
+
         egui::SidePanel::left("cfg").show(ctx, |ui| {
             ui.strong("Simulation");
             let text = if self.paused { "Run" } else { "Pause" };
-            if ui.button(text).clicked() {
-                self.paused ^= true;
-            }
+            ui.horizontal(|ui| {
+                if ui.button(text).clicked() {
+                    self.paused ^= true;
+                }
+                if self.paused {
+                    single_step |= ui.button("Single-step").clicked();
+                }
+            });
 
             rebuild_sim |= ui.button("Reset").clicked();
 
-            ui.add(DragValue::new(&mut self.current_file.dt).prefix("dt: ").speed(1e-7).suffix(" s"));
-            ui.add(DragValue::new(&mut self.nr_iters).speed(1e-2).prefix("Solver iters: "));
-            ui.add(DragValue::new(&mut self.step_size).speed(1e-6).prefix("Solver step size: "));
+            ui.add(
+                DragValue::new(&mut self.current_file.dt)
+                    .prefix("dt: ")
+                    .speed(1e-7)
+                    .suffix(" s"),
+            );
+            ui.add(
+                DragValue::new(&mut self.nr_iters)
+                    .speed(1e-2)
+                    .prefix("Solver iters: "),
+            );
+            ui.add(
+                DragValue::new(&mut self.step_size)
+                    .speed(1e-6)
+                    .prefix("Solver step size: "),
+            );
 
             ui.separator();
 
             if let Some(state) = &state {
-                self
-                    .editor
+                self.editor
                     .edit_component(ui, &mut self.current_file.diagram, state);
             }
         });
@@ -295,14 +315,30 @@ impl eframe::App for CircuitApp {
 
         // Reset
         if rebuild_sim {
-            self.sim = Some(Solver::new(&self.current_file.diagram.to_primitive_diagram()));
+            self.sim = Some(Solver::new(
+                &self.current_file.diagram.to_primitive_diagram(),
+            ));
         }
 
-        if !self.paused || rebuild_sim {
+        if !self.paused || rebuild_sim || single_step {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
-                sim.step(self.current_file.dt, &self.current_file.diagram.to_primitive_diagram(), self.nr_iters, self.step_size);
+                if let Err(e) = sim.step(
+                    self.current_file.dt,
+                    &self.current_file.diagram.to_primitive_diagram(),
+                    self.nr_iters,
+                    self.step_size,
+                ) {
+                    eprintln!("{}", e);
+                    ctx.debug_painter().text(
+                        Pos2::new(200.0, 200.0),
+                        Align2::CENTER_CENTER,
+                        &e,
+                        Default::default(),
+                        Color32::RED,
+                    );
+                }
             }
         }
     }
@@ -355,6 +391,9 @@ fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> Dia
 
 impl Default for CircuitFile {
     fn default() -> Self {
-         Self { diagram: Diagram::default(), dt: 1e-6 }
+        Self {
+            diagram: Diagram::default(),
+            dt: 1e-6,
+        }
     }
 }

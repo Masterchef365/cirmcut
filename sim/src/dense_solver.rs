@@ -115,7 +115,7 @@ impl Solver {
     }
 
     /// Note: Assumes diagram is compatible with the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, nr_iters: usize, step_size: f64) {
+    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, nr_iters: usize, step_size: f64) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
@@ -124,7 +124,7 @@ impl Solver {
             let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0]);
 
             if params.len() == 0 {
-                return;
+                return Ok(());
             }
 
 
@@ -152,10 +152,7 @@ impl Solver {
             let err = delta.iter().map(|f| f*f).sum::<f64>();
             dbg!(err);
 
-            if let Err(e) = lusol(&matrix, &mut delta, -1, 1e-3) {
-                eprintln!("{e}");
-                break;
-            }
+            lusol(&matrix, &mut delta, -1, 1e-3)?;
 
             //dbg!(&delta);
 
@@ -163,6 +160,8 @@ impl Solver {
         }
 
         [self.soln_vector] = new_state;
+
+        Ok(())
     }
 
     pub fn state(&self, diagram: &PrimitiveDiagram) -> SimOutputs {
