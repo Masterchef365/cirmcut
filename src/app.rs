@@ -195,7 +195,7 @@ impl eframe::App for CircuitApp {
                     .prefix("Max NR iters: "),
             );
             ui.add(
-                DragValue::new(&mut self.current_file.cfg.step_size)
+                DragValue::new(&mut self.current_file.cfg.nr_step_size)
                     .speed(1e-6)
                     .prefix("NR step size: "),
             );
@@ -411,9 +411,9 @@ impl Default for CircuitFile {
             dt: 5e-3,
             cfg: NewtonRaphsonConfig { 
                 dx_soln_tolerance: 1e-3,
-                nr_tolerance: 1e-3,
-                step_size: 1e-3,
-                max_nr_iters: 20,
+                nr_tolerance: 1e-9,
+                nr_step_size: 1e-2,
+                max_nr_iters: 200,
             }
         }
     }

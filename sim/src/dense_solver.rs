@@ -107,7 +107,7 @@ impl PrimitiveDiagramStateVectorMapping {
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct NewtonRaphsonConfig {
     pub max_nr_iters: usize, 
-    pub step_size: f64,
+    pub nr_step_size: f64,
     /// NR-Iterate until error reaches this value
     pub nr_tolerance: f64,
     /// When solving F Delta x = -f, which tolerance do we solve the system to?
@@ -170,7 +170,7 @@ impl Solver {
             }
 
             // w += dw * step size
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.step_size);
+            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
 
             if err < cfg.nr_tolerance {
                 break;
