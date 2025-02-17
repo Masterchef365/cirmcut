@@ -148,7 +148,7 @@ impl Solver {
         let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
 
         let mut new_soln = params;
-        lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance)?;
+        lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
 
         self.soln_vector = new_soln;
 
@@ -189,7 +189,7 @@ impl Solver {
 
             // Solve A(w_n(K)) dw = -f for dw
             let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
-            lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance)?;
+            lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();

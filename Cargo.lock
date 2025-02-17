@@ -2630,7 +2630,7 @@ dependencies = [
 [[package]]
 name = "rsparse"
 version = "1.0.0"
-source = "git+https://github.com/Masterchef365/rsparse.git?branch=master#279fac23d461d4544e1a2ab35cb482671a618534"
+source = "git+https://github.com/Masterchef365/rsparse.git?branch=master#bc9294a17322113259c8f1d184f6d22e31da8e78"
 
 [[package]]
 name = "rustc-hash"
