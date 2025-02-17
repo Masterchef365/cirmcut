@@ -22,7 +22,7 @@ pub struct SimOutputs {
 }
 
 /// Represents a single circuit element.
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub enum TwoTerminalComponent {
     Wire,
     // Resistance
@@ -35,6 +35,7 @@ pub enum TwoTerminalComponent {
     Battery(f64),
     Switch(bool),
     CurrentSource(f64),
+    Python(String),
     /*
     AcSource(Source),
     */
@@ -58,6 +59,7 @@ impl TwoTerminalComponent {
             Self::Diode => "Diode",
             Self::Switch(_) => "Switch",
             Self::CurrentSource(_) => "Current Source",
+            Self::Python(_) => "Python Scripted component",
         }
     }
 }
@@ -77,8 +79,8 @@ impl PrimitiveDiagram {
         self.two_terminal
             .iter()
             .enumerate()
-            .filter_map(|(component_idx, &(_, comp))| match comp {
-                crate::TwoTerminalComponent::Battery(v) => Some((component_idx, v)),
+            .filter_map(|(component_idx, (_, comp))| match comp {
+                crate::TwoTerminalComponent::Battery(v) => Some((component_idx, *v)),
                 _ => None,
             })
     }

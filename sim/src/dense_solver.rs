@@ -1,12 +1,17 @@
 use std::ops::Range;
 
-use rsparse::{data::{Sprs, Trpl}, lusol};
+use rsparse::{
+    data::{Sprs, Trpl},
+    lusol,
+};
+use rustpython_vm::{convert::ToPyObject, Interpreter, Settings};
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
 pub struct Solver {
     map: PrimitiveDiagramMapping,
     soln_vector: Vec<f64>,
+    interp: rustpython_vm::Interpreter,
 }
 
 /// Maps indices of the state vector (x from Ax = b) to the corresponding component voltages,
@@ -103,19 +108,16 @@ impl PrimitiveDiagramStateVectorMapping {
     }
 }
 
-
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub enum SolverMode {
     Linear,
     #[default]
     NewtonRaphson,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Clone, Copy, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, Debug)]
 pub struct SolverConfig {
-    pub max_nr_iters: usize, 
+    pub max_nr_iters: usize,
     pub nr_step_size: f64,
     /// NR-Iterate until error reaches this value
     pub nr_tolerance: f64,
@@ -129,23 +131,43 @@ impl Solver {
         let map = PrimitiveDiagramMapping::new(diagram);
 
         Self {
+            interp: Interpreter::with_init(Settings::default(), |vm| {
+                vm.add_native_modules(rustpython_stdlib::get_module_inits());
+            }),
             soln_vector: vec![0.0; map.vector_size()],
             map,
         }
     }
 
     /// Note: Assumes diagram is compatible what a sufficiently large battery (or a battery with very low internal resisith the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    pub fn step(
+        &mut self,
+        dt: f64,
+        diagram: &PrimitiveDiagram,
+        cfg: &SolverConfig,
+    ) -> Result<(), String> {
         match cfg.mode {
             SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg),
             SolverMode::Linear => self.linear_step(dt, diagram, cfg),
         }
     }
 
-    fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    fn linear_step(
+        &mut self,
+        dt: f64,
+        diagram: &PrimitiveDiagram,
+        cfg: &SolverConfig,
+    ) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
-        let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
+        let (matrix, params) = stamp(
+            dt,
+            &self.map,
+            diagram,
+            &prev_time_step_soln,
+            &prev_time_step_soln,
+            &self.interp,
+        )?;
 
         let mut new_soln = params;
         lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance)?;
@@ -155,7 +177,12 @@ impl Solver {
         Ok(())
     }
 
-    fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    fn nr_step(
+        &mut self,
+        dt: f64,
+        diagram: &PrimitiveDiagram,
+        cfg: &SolverConfig,
+    ) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
@@ -164,7 +191,14 @@ impl Solver {
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln);
+            let (matrix, params) = stamp(
+                dt,
+                &self.map,
+                diagram,
+                &new_state[0],
+                &prev_time_step_soln,
+                &self.interp,
+            )?;
 
             if params.len() == 0 {
                 return Ok(());
@@ -175,7 +209,6 @@ impl Solver {
                 dense_b.append(i, 0, *val);
             }
             let dense_b = dense_b.to_sprs();
-
 
             let mut new_state_sparse = Trpl::new();
             for (i, val) in new_state[0].iter().enumerate() {
@@ -192,7 +225,7 @@ impl Solver {
             lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance)?;
 
             // dw dot dw
-            let err = delta.iter().map(|f| f*f).sum::<f64>();
+            let err = delta.iter().map(|f| f * f).sum::<f64>();
 
             if err > last_err {
                 //return Err("Error value increased!".to_string());
@@ -200,7 +233,10 @@ impl Solver {
             }
 
             // w += dw * step size
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
+            new_state[0]
+                .iter_mut()
+                .zip(&delta)
+                .for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
 
             if err < cfg.nr_tolerance {
                 break;
@@ -238,7 +274,14 @@ impl Solver {
     }
 }
 
-fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs, Vec<f64>) {
+fn stamp(
+    dt: f64,
+    map: &PrimitiveDiagramMapping,
+    diagram: &PrimitiveDiagram,
+    last_iteration: &[f64],
+    last_timestep: &[f64],
+    interpreter: &Interpreter,
+) -> Result<(Sprs, Vec<f64>), String> {
     let n = map.vector_size();
 
     // (params, state)
@@ -248,38 +291,24 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
     // TODO: Three-terminal components
 
     // Stamp current laws
-    for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
-    {
-        let [begin_node_idx, end_node_idx] = node_indices;
+    for (component_idx, (node_indices, _component)) in diagram.two_terminal.iter().enumerate() {
+        let [begin_node_idx, end_node_idx] = *node_indices;
 
         let current_idx = map.state_map.currents().nth(component_idx).unwrap();
         if let Some(end_current_law_idx) = map.param_map.current_laws().nth(end_node_idx) {
             matrix.append(end_current_law_idx, current_idx, 1.0);
         }
-        if let Some(begin_current_law_idx) =
-            map.param_map.current_laws().nth(begin_node_idx)
-        {
+        if let Some(begin_current_law_idx) = map.param_map.current_laws().nth(begin_node_idx) {
             matrix.append(begin_current_law_idx, current_idx, -1.0);
         }
     }
 
     // Stamp voltage laws
-    for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
-    {
-        let [begin_node_idx, end_node_idx] = node_indices;
+    for (component_idx, (node_indices, _component)) in diagram.two_terminal.iter().enumerate() {
+        let [begin_node_idx, end_node_idx] = *node_indices;
 
-        let voltage_law_idx = 
-            map
-            .param_map
-            .voltage_laws()
-            .nth(component_idx)
-            .unwrap();
-        let voltage_drop_idx = 
-            map
-            .state_map
-            .voltage_drops()
-            .nth(component_idx)
-            .unwrap();
+        let voltage_law_idx = map.param_map.voltage_laws().nth(component_idx).unwrap();
+        let voltage_drop_idx = map.state_map.voltage_drops().nth(component_idx).unwrap();
 
         matrix.append(voltage_law_idx, voltage_drop_idx, 1.0);
         if let Some(end_voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
@@ -292,11 +321,13 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
     }
 
     // Stamp components
-    for (i, &(node_indices, component)) in diagram.two_terminal.iter().enumerate() {
+    for (i, (node_indices, component)) in diagram.two_terminal.iter().enumerate() {
         let component_idx = map.param_map.components().nth(i).unwrap();
 
         let current_idx = map.state_map.currents().nth(i).unwrap();
         let voltage_drop_idx = map.state_map.voltage_drops().nth(i).unwrap();
+
+        let [begin_node_idx, end_node_idx] = *node_indices;
 
         match component {
             TwoTerminalComponent::Resistor(resistance) => {
@@ -306,7 +337,6 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
             TwoTerminalComponent::Wire => {
                 // Vd = 0
                 //matrix.append(component_idx, voltage_drop_idx, 1.0);
-                let [begin_node_idx, end_node_idx] = node_indices;
 
                 if let Some(voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
                     matrix.append(component_idx, voltage_idx, 1.0);
@@ -321,7 +351,7 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
                 //matrix.append(component_idx, voltage_drop_idx, 1.0);
                 //let [begin_node_idx, end_node_idx] = node_indices;
 
-                if is_open {
+                if *is_open {
                     // Set current through this component to zero
                     matrix.append(component_idx, current_idx, 1.0);
                 } else {
@@ -342,11 +372,11 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
             }
             TwoTerminalComponent::Battery(voltage) => {
                 matrix.append(component_idx, voltage_drop_idx, -1.0);
-                params[component_idx] = voltage;
+                params[component_idx] = *voltage;
             }
             TwoTerminalComponent::Capacitor(capacitance) => {
                 matrix.append(component_idx, current_idx, -dt);
-                matrix.append(component_idx, voltage_drop_idx, capacitance);
+                matrix.append(component_idx, voltage_drop_idx, *capacitance);
                 params[component_idx] = last_timestep[voltage_drop_idx] * capacitance;
             }
             TwoTerminalComponent::Inductor(inductance) => {
@@ -378,13 +408,69 @@ fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, las
             }
             TwoTerminalComponent::CurrentSource(current) => {
                 matrix.append(component_idx, current_idx, 1.0);
-                params[component_idx] = current;
+                params[component_idx] = *current;
             }
-            //other => eprintln!("{other:?} is not supported yet!!"),
+            TwoTerminalComponent::Python(script) => {
+                let mut voltage_drop_coeff = 0.0;
+                let mut current_drop_coeff = 0.0;
+                let mut parameter = 0.0;
+
+                let v_n = last_iteration[voltage_drop_idx];
+                let i_n = last_iteration[current_idx];
+
+                let v_t = last_timestep[voltage_drop_idx];
+                let i_t = last_timestep[current_idx];
+
+                let ret = interpreter.enter(|vm| {
+                    let scope = vm.new_scope_with_builtins();
+                    scope.globals.set_item("In", i_n.to_pyobject(vm), vm)?;
+                    scope.globals.set_item("It", i_t.to_pyobject(vm), vm)?;
+                    scope.globals.set_item("Vn", v_n.to_pyobject(vm), vm)?;
+                    scope.globals.set_item("Vt", v_t.to_pyobject(vm), vm)?;
+
+                    scope
+                        .globals
+                        .set_item("Cv", voltage_drop_coeff.to_pyobject(vm), vm).unwrap();
+                    scope
+                        .globals
+                        .set_item("Ci", current_drop_coeff.to_pyobject(vm), vm).unwrap();
+                    scope
+                        .globals
+                        .set_item("param", parameter.to_pyobject(vm), vm).unwrap();
+
+                    vm.run_code_string(scope.clone(), script, format!("<component {i}>"))?;
+
+                    voltage_drop_coeff = scope
+                        .globals
+                        .get_item("Cv", vm)?.try_float(vm)?.to_f64();
+
+                    current_drop_coeff = scope
+                        .globals
+                        .get_item("Ci", vm)?.try_float(vm)?.to_f64();
+
+                    parameter = scope
+                        .globals
+                        .get_item("param", vm)?.try_float(vm)?.to_f64();
+
+                    Ok(())
+                });
+
+                if let Err(e) = ret {
+                    let mut s = String::new();
+                    interpreter.enter(|vm| {
+                        vm.write_exception(&mut s, &e).unwrap();
+                    });
+                    return Err(s);
+                }
+
+                matrix.append(component_idx, voltage_drop_idx, voltage_drop_coeff);
+                matrix.append(component_idx, current_idx, current_drop_coeff);
+                params[component_idx] = parameter;
+            } //other => eprintln!("{other:?} is not supported yet!!"),
         }
     }
 
-    (matrix.to_sprs(), params)
+    Ok((matrix.to_sprs(), params))
 }
 
 impl Default for SolverConfig {

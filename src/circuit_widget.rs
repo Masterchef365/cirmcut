@@ -1,12 +1,11 @@
-use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
+use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, TextEdit, Ui, Vec2};
 use std::collections::HashMap;
 
 use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
 use crate::{
     components::{
-        draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode,
-        draw_inductor, draw_resistor, draw_switch, draw_transistor,
+        draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode, draw_inductor, draw_python_source, draw_resistor, draw_switch, draw_transistor
     },
     to_metric_prefix,
 };
@@ -115,13 +114,13 @@ impl Diagram {
         let two_terminal = self
             .two_terminal
             .iter()
-            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), *component))
+            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), component.clone()))
             .collect();
 
         let three_terminal = self
             .three_terminal
             .iter()
-            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), *component))
+            .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), component.clone()))
             .collect();
 
         PrimitiveDiagram {
@@ -213,7 +212,7 @@ impl DiagramEditor {
         let mut destructive_change = false;
         let mut new_selection = None;
 
-        for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
+        for (idx, (pos, _)) in diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
                 ui,
                 *pos,
@@ -471,7 +470,7 @@ fn interact_with_twoterminal(
         ui.painter(),
         [begin + begin_offset, end + end_offset],
         wires,
-        *component,
+        component,
         selected,
         vis,
     );
@@ -756,7 +755,7 @@ fn draw_twoterminal_component(
     painter: &Painter,
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
-    component: TwoTerminalComponent,
+    component: &TwoTerminalComponent,
     selected: bool,
     vis: &VisualizationOptions,
 ) {
@@ -769,10 +768,13 @@ fn draw_twoterminal_component(
         TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Switch(is_open) => {
-            draw_switch(painter, pos, wires, selected, is_open, vis)
+            draw_switch(painter, pos, wires, selected, *is_open, vis)
         }
         TwoTerminalComponent::CurrentSource(_) => {
             draw_current_source(painter, pos, wires, selected, vis)
+        }
+        TwoTerminalComponent::Python(_) => {
+            draw_python_source(painter, pos, wires, selected, vis)
         }
     }
 }
@@ -827,6 +829,23 @@ fn edit_twoterminal_component(
         TwoTerminalComponent::CurrentSource(i) => {
             ui.add(DragValue::new(i).suffix(" A").speed(1e-2))
         }
+        TwoTerminalComponent::Python(script) => {
+            let resp = ui.add(TextEdit::multiline(script).code_editor());
+
+            ui.label("Inputs:");
+            ui.label("In: Previous iteration's current value");
+            ui.label("It: Previous time step's current value");
+            ui.label("Vn: Previous iteration's voltage value");
+            ui.label("Vt: Previous time step's voltage value");
+
+            ui.label("Outputs:");
+            ui.label("Cv * dV + Ci * dI = param");
+            ui.label("Cv: Coefficient, multiplied by voltage drop. Zero by default.");
+            ui.label("Ci: Coefficient, multiplied by current drop. Zero by default.");
+            ui.label("param: Parameter solved for. Zero by default.");
+
+            resp
+        },
     };
 
     let voltage = wires[1].voltage - wires[0].voltage;

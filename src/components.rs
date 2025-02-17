@@ -324,8 +324,34 @@ pub fn draw_current_source(
     begin_wire.current(painter, begin, end, vis);
 }
 
-pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTerminalComponent) {
-    if let Some(text) = format_component_value(component) {
+pub fn draw_python_source(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    selected: bool,
+    vis: &VisualizationOptions,
+) {
+    let [begin, end] = pos;
+    let [begin_wire, end_wire] = wires;
+
+    let r = 0.25 * CELL_SIZE;
+    let (begin_segment, end_segment, _) = center_cell_segment(begin, end, r * 2.0);
+
+    let center = begin_segment.lerp(end_segment, 0.5);
+
+    painter.circle_stroke(center, r, Stroke::new(1.0, Color32::DARK_GRAY));
+
+    begin_wire.line_segment(painter, begin, begin_segment, selected, vis);
+    end_wire.line_segment(painter, end_segment, end, selected, vis);
+
+    painter.text(center, Align2::CENTER_CENTER, "Script", Default::default(), Color32::WHITE);
+
+    begin_wire.current(painter, begin, end, vis);
+}
+
+
+pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: &TwoTerminalComponent) {
+    if let Some(text) = format_component_value(&component) {
         let diff = pos[1] - pos[0];
         let y = diff.normalized() * CELL_SIZE;
         let x = y.rot90();
@@ -344,12 +370,12 @@ pub fn draw_component_value(painter: &Painter, pos: [Pos2; 2], component: TwoTer
     }
 }
 
-fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
+fn format_component_value(component: &TwoTerminalComponent) -> Option<String> {
     match component {
-        TwoTerminalComponent::Battery(v) => Some(to_metric_prefix(v, 'V')),
-        TwoTerminalComponent::Capacitor(c) => Some(to_metric_prefix(c, 'F')),
-        TwoTerminalComponent::Inductor(i) => Some(to_metric_prefix(i, 'H')),
-        TwoTerminalComponent::Resistor(r) => Some(to_metric_prefix(r, 'Ω')),
+        TwoTerminalComponent::Battery(v) => Some(to_metric_prefix(*v, 'V')),
+        TwoTerminalComponent::Capacitor(c) => Some(to_metric_prefix(*c, 'F')),
+        TwoTerminalComponent::Inductor(i) => Some(to_metric_prefix(*i, 'H')),
+        TwoTerminalComponent::Resistor(r) => Some(to_metric_prefix(*r, 'Ω')),
         _ => None,
     }
 }

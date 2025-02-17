@@ -254,11 +254,11 @@ impl eframe::App for CircuitApp {
                         self.vis_opt.voltage_scale = all_wires
                             .clone()
                             .map(|wire| wire.voltage.abs())
-                            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+                            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().voltage_scale);
                         self.vis_opt.current_scale = all_wires
                             .map(|wire| wire.current.abs())
-                            .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
+                            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().current_scale);
                     }
                     //self.vis_opt.voltage_scale =

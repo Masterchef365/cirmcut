@@ -9,3 +9,6 @@ ndarray = "0.16.0"
 #rsparse = "1.0.0"
 rsparse = { git = "https://github.com/Masterchef365/rsparse.git", branch = "master" }
 #ndarray-linalg = { version = "0.17.0", features = ["openblas-static"] }
+
+rustpython-vm = "0.4.0"
+rustpython-stdlib = "0.4.0"
