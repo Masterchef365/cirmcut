@@ -335,6 +335,14 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::CurrentSource(0.1),
                         );
                     }
+                    if ui.button("Python script").clicked() {
+                        rebuild_sim = true;
+                        self.editor.new_twoterminal(
+                            &mut self.current_file.diagram,
+                            pos,
+                            TwoTerminalComponent::Python("Cv = 1.0\nparam = 1.0".to_string()),
+                        );
+                    }
                     /*if ui.button("PNP").clicked() {
                         rebuild_sim = true;
                         self.editor.new_threeterminal(
