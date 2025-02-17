@@ -840,7 +840,7 @@ fn edit_twoterminal_component(
             ui.label("t: Time in seconds");
 
             ui.label("Outputs:");
-            ui.label("Cv * dV + Ci * dI = param");
+            ui.label("Cv * V + Ci * I = param");
             ui.label("Cv: Coefficient, multiplied by voltage drop. Zero by default.");
             ui.label("Ci: Coefficient, multiplied by current drop. Zero by default.");
             ui.label("param: Parameter solved for. Zero by default.");

@@ -4,7 +4,7 @@ use rsparse::{
     data::{Sprs, Trpl},
     lusol,
 };
-use rustpython_vm::{convert::ToPyObject, Interpreter, Settings};
+use rustpython_vm::{convert::ToPyObject, scope::Scope, Interpreter, Settings};
 
 use crate::{PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
@@ -13,6 +13,7 @@ pub struct Solver {
     soln_vector: Vec<f64>,
     interp: rustpython_vm::Interpreter,
     time: f64,
+    scope: Scope,
 }
 
 /// Maps indices of the state vector (x from Ax = b) to the corresponding component voltages,
@@ -131,11 +132,16 @@ impl Solver {
     pub fn new(diagram: &PrimitiveDiagram) -> Self {
         let map = PrimitiveDiagramMapping::new(diagram);
 
+        let interp = Interpreter::with_init(Settings::default(), |vm| {
+                vm.add_native_modules(rustpython_stdlib::get_module_inits());
+            });
+
+        let scope = interp.enter(|vm| vm.new_scope_with_builtins());
+
         Self {
             time: 0.0,
-            interp: Interpreter::with_init(Settings::default(), |vm| {
-                vm.add_native_modules(rustpython_stdlib::get_module_inits());
-            }),
+            interp,
+            scope,
             soln_vector: vec![0.0; map.vector_size()],
             map,
         }
@@ -173,6 +179,7 @@ impl Solver {
             &prev_time_step_soln,
             &prev_time_step_soln,
             &self.interp,
+            &self.scope,
             self.time,
         )?;
 
@@ -205,6 +212,7 @@ impl Solver {
                 &new_state[0],
                 &prev_time_step_soln,
                 &self.interp,
+                &self.scope,
                 self.time,
             )?;
 
@@ -289,6 +297,7 @@ fn stamp(
     last_iteration: &[f64],
     last_timestep: &[f64],
     interpreter: &Interpreter,
+    scope: &Scope,
     time: f64,
 ) -> Result<(Sprs, Vec<f64>), String> {
     let n = map.vector_size();
@@ -431,7 +440,6 @@ fn stamp(
                 let i_t = last_timestep[current_idx];
 
                 let ret = interpreter.enter(|vm| {
-                    let scope = vm.new_scope_with_builtins();
                     scope.globals.set_item("In", i_n.to_pyobject(vm), vm)?;
                     scope.globals.set_item("It", i_t.to_pyobject(vm), vm)?;
                     scope.globals.set_item("Vn", v_n.to_pyobject(vm), vm)?;
