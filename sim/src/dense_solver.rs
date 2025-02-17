@@ -12,6 +12,7 @@ pub struct Solver {
     map: PrimitiveDiagramMapping,
     soln_vector: Vec<f64>,
     interp: rustpython_vm::Interpreter,
+    time: f64,
 }
 
 /// Maps indices of the state vector (x from Ax = b) to the corresponding component voltages,
@@ -131,6 +132,7 @@ impl Solver {
         let map = PrimitiveDiagramMapping::new(diagram);
 
         Self {
+            time: 0.0,
             interp: Interpreter::with_init(Settings::default(), |vm| {
                 vm.add_native_modules(rustpython_stdlib::get_module_inits());
             }),
@@ -147,9 +149,13 @@ impl Solver {
         cfg: &SolverConfig,
     ) -> Result<(), String> {
         match cfg.mode {
-            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg),
-            SolverMode::Linear => self.linear_step(dt, diagram, cfg),
+            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg)?,
+            SolverMode::Linear => self.linear_step(dt, diagram, cfg)?,
         }
+
+        self.time += dt;
+
+        Ok(())
     }
 
     fn linear_step(
@@ -167,6 +173,7 @@ impl Solver {
             &prev_time_step_soln,
             &prev_time_step_soln,
             &self.interp,
+            self.time,
         )?;
 
         let mut new_soln = params;
@@ -198,6 +205,7 @@ impl Solver {
                 &new_state[0],
                 &prev_time_step_soln,
                 &self.interp,
+                self.time,
             )?;
 
             if params.len() == 0 {
@@ -281,6 +289,7 @@ fn stamp(
     last_iteration: &[f64],
     last_timestep: &[f64],
     interpreter: &Interpreter,
+    time: f64,
 ) -> Result<(Sprs, Vec<f64>), String> {
     let n = map.vector_size();
 
@@ -427,6 +436,7 @@ fn stamp(
                     scope.globals.set_item("It", i_t.to_pyobject(vm), vm)?;
                     scope.globals.set_item("Vn", v_n.to_pyobject(vm), vm)?;
                     scope.globals.set_item("Vt", v_t.to_pyobject(vm), vm)?;
+                    scope.globals.set_item("t", time.to_pyobject(vm), vm)?;
 
                     scope
                         .globals
