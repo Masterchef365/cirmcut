@@ -723,8 +723,7 @@ impl DiagramWireState {
 }
 
 fn voltage_color(voltage: f64) -> Color32 {
-    let v = voltage / 5.0;
-    let v = v.clamp(-1.0, 1.0);
+    let v = voltage.clamp(-1.0, 1.0);
 
     let neutral = Color32::DARK_GRAY;
 
