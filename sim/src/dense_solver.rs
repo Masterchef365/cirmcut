@@ -445,6 +445,7 @@ fn stamp(
                     scope.globals.set_item("Vn", v_n.to_pyobject(vm), vm)?;
                     scope.globals.set_item("Vt", v_t.to_pyobject(vm), vm)?;
                     scope.globals.set_item("t", time.to_pyobject(vm), vm)?;
+                    scope.globals.set_item("dt", dt.to_pyobject(vm), vm)?;
 
                     scope
                         .globals

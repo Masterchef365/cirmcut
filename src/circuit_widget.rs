@@ -838,6 +838,7 @@ fn edit_twoterminal_component(
             ui.label("Vn: Previous iteration's voltage value");
             ui.label("Vt: Previous time step's voltage value");
             ui.label("t: Time in seconds");
+            ui.label("dt: Time step in seconds");
 
             ui.label("Outputs:");
             ui.label("Cv * V + Ci * I = param");
