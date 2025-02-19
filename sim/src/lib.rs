@@ -1,4 +1,6 @@
 pub mod solver;
+mod map;
+mod stamp;
 
 pub type CellPos = (i32, i32);
 
