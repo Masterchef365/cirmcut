@@ -1,5 +1,4 @@
-
-pub mod dense_solver;
+pub mod solver;
 
 pub type CellPos = (i32, i32);
 

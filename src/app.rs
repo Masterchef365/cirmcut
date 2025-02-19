@@ -5,7 +5,7 @@ use std::{
 };
 
 use cirmcut_sim::{
-    dense_solver::{Solver, SolverConfig, SolverMode},
+    solver::{Solver, SolverConfig, SolverMode},
     PrimitiveDiagram, SimOutputs, TwoTerminalComponent,
 };
 use egui::{Color32, DragValue, Key, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
