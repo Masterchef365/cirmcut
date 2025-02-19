@@ -121,26 +121,10 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 params[component_idx] = -last_timestep[current_idx] * inductance;
             }
             TwoTerminalComponent::Diode => {
-                // Stolen from falstad.
-                let sat_current = 171.4352819281e-9;
-                let n = 2.0;
-                let temperature = 273.15 + 22.0;
-                let thermal_voltage = 8.617e-5 * temperature;
-                let nvt = n * thermal_voltage;
-
-                let v0 = last_iteration[voltage_drop_idx];
-                /*
-                let dfdi = 1.0 - nvt / (sat_current + i);
-                let dfdv = -1.0 + sat_current * (v / nvt).exp();
-                */
-
-                let ex = (v0 / nvt).exp();
-                let coeff = -(sat_current / nvt) * ex;
-
+                let (coeff, param) = diode_eq(last_iteration[voltage_drop_idx]);
                 matrix.append(component_idx, voltage_drop_idx, coeff);
                 matrix.append(component_idx, current_idx, 1.0);
-
-                params[component_idx] = sat_current * (1.0 - ex + v0 * ex / nvt);
+                params[component_idx] = param;
             }
             TwoTerminalComponent::CurrentSource(current) => {
                 matrix.append(component_idx, current_idx, 1.0);
@@ -151,4 +135,24 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
     }
 
     (matrix.to_sprs(), params)
+}
+
+// Solves for the backwards difference, using the taylor expansion of 
+// the diode equation about `last_iteration_voltage`.
+fn diode_eq(last_iteration_voltage: f64) -> (f64, f64) {
+    // Stolen from falstad.
+    let sat_current = 171.4352819281e-9;
+    let n = 2.0;
+    let temperature = 273.15 + 22.0;
+    let thermal_voltage = 8.617e-5 * temperature;
+    let nvt = n * thermal_voltage;
+
+    let v0 = last_iteration_voltage;
+
+    let ex = (v0 / nvt).exp();
+    let coeff = -(sat_current / nvt) * ex;
+
+    let param = sat_current * (1.0 - ex + v0 * ex / nvt);
+
+    (coeff, param)
 }
