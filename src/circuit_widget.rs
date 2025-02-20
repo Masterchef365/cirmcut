@@ -300,11 +300,13 @@ impl DiagramEditor {
     ) -> bool {
         if let Some((idx, is_threeterminal)) = self.selected {
             if is_threeterminal {
+                if let Some((_, component)) = diagram.three_terminal.get_mut(idx) {
                 edit_threeterminal_component(
                     ui,
-                    &mut diagram.three_terminal[idx].1,
+                    component,
                     state.three_terminal[idx],
                 );
+                }
             } else {
                 if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
                     edit_twoterminal_component(ui, component, state.two_terminal[idx]);

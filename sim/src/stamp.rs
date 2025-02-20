@@ -232,13 +232,20 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
 
         match component {
             ThreeTerminalComponent::PTransistor(_) => eprintln!("P TRANSISTOR NOT IMPLEMENTED!"),
-            ThreeTerminalComponent::NTransistor(beta) => {
-                let (diode_coeff_ab, diode_param_ab) = diode_eq(last_iteration[ab_voltage_drop_idx]);
+            ThreeTerminalComponent::NTransistor(_) => {
+                let (diode_coeff_ab, mut diode_param_ab) = diode_eq(last_iteration[ab_voltage_drop_idx]);
+
+                let (diode_coeff_bc, mut diode_param_bc) = diode_eq(-last_iteration[bc_voltage_drop_idx]);
+
+                let af = 0.998;
+
+                diode_param_bc += af * last_iteration[ab_current_idx];
+                diode_param_ab += af * last_iteration[bc_current_idx];
+
                 matrix.append(ab_law_idx, ab_voltage_drop_idx, diode_coeff_ab);
                 matrix.append(ab_law_idx, ab_current_idx, 1.0);
                 params[ab_law_idx] = diode_param_ab;
 
-                let (diode_coeff_bc, diode_param_bc) = diode_eq(-last_iteration[bc_voltage_drop_idx]);
                 matrix.append(bc_law_idx, bc_voltage_drop_idx, diode_coeff_bc);
                 matrix.append(bc_law_idx, bc_current_idx, 1.0);
                 params[bc_law_idx] = diode_param_bc;
