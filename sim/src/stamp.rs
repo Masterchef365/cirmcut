@@ -219,7 +219,7 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
         total_idx += 1;
     }
 
-    for &(node_indices, component) in &diagram.three_terminal {
+    for &(_, component) in &diagram.three_terminal {
         let ab_law_idx = map.param_map.components().nth(total_idx).unwrap();
         let ab_current_idx = map.state_map.currents().nth(total_idx).unwrap();
         let ab_voltage_drop_idx = map.state_map.voltage_drops().nth(total_idx).unwrap();
@@ -231,11 +231,15 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
         total_idx += 1;
 
         match component {
-            ThreeTerminalComponent::PTransistor(_) => eprintln!("P TRANSISTOR NOT IMPLEMENTED!"),
-            ThreeTerminalComponent::NTransistor(_) => {
-                let (diode_coeff_ab, mut diode_param_ab) = diode_eq(last_iteration[ab_voltage_drop_idx]);
+            ThreeTerminalComponent::NTransistor(_) | ThreeTerminalComponent::PTransistor(_) => {
+                let sign = match component {
+                    ThreeTerminalComponent::NTransistor(_) => 1.0,
+                    _ => -1.0,
+                };
 
-                let (diode_coeff_bc, mut diode_param_bc) = diode_eq(-last_iteration[bc_voltage_drop_idx]);
+                let (diode_coeff_ab, mut diode_param_ab) = diode_eq(sign * last_iteration[ab_voltage_drop_idx]);
+
+                let (diode_coeff_bc, mut diode_param_bc) = diode_eq(-sign * last_iteration[bc_voltage_drop_idx]);
 
                 let af = 0.998;
 

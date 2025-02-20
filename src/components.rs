@@ -45,8 +45,8 @@ pub fn draw_transistor(
 
     emitter_wire.arrow(
         painter,
-        emitter_input_tap,
         base_input_tap + ty_orient * conn_radius,
+        emitter_input_tap,
         selected,
         p_type,
         vis,
