@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use rsparse::{data::{Sprs, Trpl}, lusol};
 
-use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
+use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
 
 pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs, Vec<f64>) {
     let n = map.vector_size();
@@ -14,11 +14,12 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
     // TODO: Three-terminal components
 
     // Stamp current laws
-    for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
+    let mut total_current_idx = 0;
+    for &(node_indices, _component) in &diagram.two_terminal
     {
         let [begin_node_idx, end_node_idx] = node_indices;
 
-        let current_idx = map.state_map.currents().nth(component_idx).unwrap();
+        let current_idx = map.state_map.currents().nth(total_current_idx).unwrap();
         if let Some(end_current_law_idx) = map.param_map.current_laws().nth(end_node_idx) {
             matrix.append(end_current_law_idx, current_idx, 1.0);
         }
@@ -27,10 +28,37 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
         {
             matrix.append(begin_current_law_idx, current_idx, -1.0);
         }
+
+        total_current_idx += 1;
+    }
+
+    for &(node_indices, _component) in &diagram.three_terminal
+    {
+        let [a, b, c] = node_indices;
+        let i_ab_idx = map.state_map.currents().nth(total_current_idx).unwrap();
+        total_current_idx += 1;
+        let i_bc_idx = map.state_map.currents().nth(total_current_idx).unwrap();
+        total_current_idx += 1;
+
+        let a_idx = map.param_map.current_laws().nth(a);
+        let b_idx = map.param_map.current_laws().nth(b);
+        let c_idx = map.param_map.current_laws().nth(c);
+
+        if let Some(a) = a_idx {
+            matrix.append(a, i_ab_idx, 1.0);
+        }
+        if let Some(b) = b_idx {
+            matrix.append(b, i_ab_idx, -1.0);
+            matrix.append(b, i_bc_idx, 1.0);
+        }
+        if let Some(c) = c_idx {
+            matrix.append(c, i_bc_idx, -1.0);
+        }
     }
 
     // Stamp voltage laws
-    for (component_idx, &(node_indices, _component)) in diagram.two_terminal.iter().enumerate()
+    let mut total_voltage_idx = 0;
+    for &(node_indices, _component) in &diagram.two_terminal
     {
         let [begin_node_idx, end_node_idx] = node_indices;
 
@@ -38,14 +66,16 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
             map
             .param_map
             .voltage_laws()
-            .nth(component_idx)
+            .nth(total_voltage_idx)
             .unwrap();
         let voltage_drop_idx = 
             map
             .state_map
             .voltage_drops()
-            .nth(component_idx)
+            .nth(total_voltage_idx)
             .unwrap();
+
+        total_voltage_idx += 1;
 
         matrix.append(voltage_law_idx, voltage_drop_idx, 1.0);
         if let Some(end_voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
@@ -57,17 +87,70 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
         }
     }
 
-    // Stamp components
-    for (i, &(node_indices, component)) in diagram.two_terminal.iter().enumerate() {
-        let component_idx = map.param_map.components().nth(i).unwrap();
+    for &(node_indices, _component) in &diagram.three_terminal
+    {
+        let [a, b, c] = node_indices;
 
-        let current_idx = map.state_map.currents().nth(i).unwrap();
-        let voltage_drop_idx = map.state_map.voltage_drops().nth(i).unwrap();
+        let v_ab_law_idx = 
+            map
+            .param_map
+            .voltage_laws()
+            .nth(total_voltage_idx)
+            .unwrap();
+        let v_ab_drop_idx = 
+            map
+            .state_map
+            .voltage_drops()
+            .nth(total_voltage_idx)
+            .unwrap();
+
+        total_voltage_idx += 1;
+
+        matrix.append(v_ab_law_idx, v_ab_drop_idx, 1.0);
+
+        let v_bc_law_idx = 
+            map
+            .param_map
+            .voltage_laws()
+            .nth(total_voltage_idx)
+            .unwrap();
+        let v_bc_drop_idx = 
+            map
+            .state_map
+            .voltage_drops()
+            .nth(total_voltage_idx)
+            .unwrap();
+
+        total_voltage_idx += 1;
+
+        matrix.append(v_bc_law_idx, v_bc_drop_idx, 1.0);
+
+        if let Some(a) = map.state_map.voltages().nth(a) {
+            matrix.append(v_ab_law_idx, a, 1.0);
+        }
+
+        if let Some(b) = map.state_map.voltages().nth(b) {
+            matrix.append(v_ab_law_idx, b, -1.0);
+            matrix.append(v_bc_law_idx, b, 1.0);
+        }
+
+        if let Some(c) = map.state_map.voltages().nth(c) {
+            matrix.append(v_bc_law_idx, c, -1.0);
+        }
+    }
+
+    // Stamp components
+    let mut total_idx = 0;
+    for &(node_indices, component) in &diagram.two_terminal {
+        let law_idx = map.param_map.components().nth(total_idx).unwrap();
+
+        let current_idx = map.state_map.currents().nth(total_idx).unwrap();
+        let voltage_drop_idx = map.state_map.voltage_drops().nth(total_idx).unwrap();
 
         match component {
             TwoTerminalComponent::Resistor(resistance) => {
-                matrix.append(component_idx, current_idx, -resistance);
-                matrix.append(component_idx, voltage_drop_idx, 1.0);
+                matrix.append(law_idx, current_idx, -resistance);
+                matrix.append(law_idx, voltage_drop_idx, 1.0);
             }
             TwoTerminalComponent::Wire => {
                 // Vd = 0
@@ -75,11 +158,11 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 let [begin_node_idx, end_node_idx] = node_indices;
 
                 if let Some(voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
-                    matrix.append(component_idx, voltage_idx, 1.0);
+                    matrix.append(law_idx, voltage_idx, 1.0);
                 }
 
                 if let Some(voltage_idx) = map.state_map.voltages().nth(begin_node_idx) {
-                    matrix.append(component_idx, voltage_idx, -1.0);
+                    matrix.append(law_idx, voltage_idx, -1.0);
                 }
             }
             TwoTerminalComponent::Switch(is_open) => {
@@ -89,10 +172,10 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
 
                 if is_open {
                     // Set current through this component to zero
-                    matrix.append(component_idx, current_idx, 1.0);
+                    matrix.append(law_idx, current_idx, 1.0);
                 } else {
                     // Set voltage through this component to zero
-                    matrix.append(component_idx, voltage_drop_idx, 1.0);
+                    matrix.append(law_idx, voltage_drop_idx, 1.0);
                     /*
                     // Set voltages of connected nodes to be equal
                     if let Some(voltage_idx) = map.state_map.voltages().nth(end_node_idx) {
@@ -107,30 +190,59 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 }
             }
             TwoTerminalComponent::Battery(voltage) => {
-                matrix.append(component_idx, voltage_drop_idx, -1.0);
-                params[component_idx] = voltage;
+                matrix.append(law_idx, voltage_drop_idx, -1.0);
+                params[law_idx] = voltage;
             }
             TwoTerminalComponent::Capacitor(capacitance) => {
-                matrix.append(component_idx, current_idx, -dt);
-                matrix.append(component_idx, voltage_drop_idx, capacitance);
-                params[component_idx] = last_timestep[voltage_drop_idx] * capacitance;
+                matrix.append(law_idx, current_idx, -dt);
+                matrix.append(law_idx, voltage_drop_idx, capacitance);
+                params[law_idx] = last_timestep[voltage_drop_idx] * capacitance;
             }
             TwoTerminalComponent::Inductor(inductance) => {
-                matrix.append(component_idx, voltage_drop_idx, dt);
-                matrix.append(component_idx, current_idx, -inductance);
-                params[component_idx] = -last_timestep[current_idx] * inductance;
+                matrix.append(law_idx, voltage_drop_idx, dt);
+                matrix.append(law_idx, current_idx, -inductance);
+                params[law_idx] = -last_timestep[current_idx] * inductance;
             }
             TwoTerminalComponent::Diode => {
                 let (coeff, param) = diode_eq(last_iteration[voltage_drop_idx]);
-                matrix.append(component_idx, voltage_drop_idx, coeff);
-                matrix.append(component_idx, current_idx, 1.0);
-                params[component_idx] = param;
+                matrix.append(law_idx, voltage_drop_idx, coeff);
+                matrix.append(law_idx, current_idx, 1.0);
+                params[law_idx] = param;
             }
             TwoTerminalComponent::CurrentSource(current) => {
-                matrix.append(component_idx, current_idx, 1.0);
-                params[component_idx] = current;
+                matrix.append(law_idx, current_idx, 1.0);
+                params[law_idx] = current;
             }
             //other => eprintln!("{other:?} is not supported yet!!"),
+        }
+
+        total_idx += 1;
+    }
+
+    for &(node_indices, component) in &diagram.three_terminal {
+        let ab_law_idx = map.param_map.components().nth(total_idx).unwrap();
+        let ab_current_idx = map.state_map.currents().nth(total_idx).unwrap();
+        let ab_voltage_drop_idx = map.state_map.voltage_drops().nth(total_idx).unwrap();
+        total_idx += 1;
+
+        let bc_law_idx = map.param_map.components().nth(total_idx).unwrap();
+        let bc_current_idx = map.state_map.currents().nth(total_idx).unwrap();
+        let bc_voltage_drop_idx = map.state_map.voltage_drops().nth(total_idx).unwrap();
+        total_idx += 1;
+
+        match component {
+            ThreeTerminalComponent::PTransistor(_) => eprintln!("P TRANSISTOR NOT IMPLEMENTED!"),
+            ThreeTerminalComponent::NTransistor(beta) => {
+                let (diode_coeff_ab, diode_param_ab) = diode_eq(last_iteration[ab_voltage_drop_idx]);
+                matrix.append(ab_law_idx, ab_voltage_drop_idx, diode_coeff_ab);
+                matrix.append(ab_law_idx, ab_current_idx, 1.0);
+                params[ab_law_idx] = diode_param_ab;
+
+                let (diode_coeff_bc, diode_param_bc) = diode_eq(-last_iteration[bc_voltage_drop_idx]);
+                matrix.append(bc_law_idx, bc_voltage_drop_idx, diode_coeff_bc);
+                matrix.append(bc_law_idx, bc_current_idx, 1.0);
+                params[bc_law_idx] = diode_param_bc;
+            }
         }
     }
 

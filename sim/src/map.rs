@@ -43,8 +43,8 @@ impl PrimitiveDiagramMapping {
 impl PrimitiveDiagramParameterMapping {
     pub fn new(diagram: &PrimitiveDiagram) -> Self {
         Self {
-            n_components: diagram.two_terminal.len(),
-            n_voltage_laws: diagram.two_terminal.len(),
+            n_components: diagram.two_terminal.len() + diagram.three_terminal.len() * 2,
+            n_voltage_laws: diagram.two_terminal.len() + diagram.three_terminal.len() * 2,
             n_current_laws: diagram.num_nodes.saturating_sub(1),
         }
     }
@@ -71,8 +71,8 @@ impl PrimitiveDiagramParameterMapping {
 impl PrimitiveDiagramStateVectorMapping {
     pub fn new(diagram: &PrimitiveDiagram) -> Self {
         Self {
-            n_currents: diagram.two_terminal.len(),
-            n_voltage_drops: diagram.two_terminal.len(),
+            n_currents: diagram.two_terminal.len() + diagram.three_terminal.len() * 2,
+            n_voltage_drops: diagram.two_terminal.len() + diagram.three_terminal.len() * 2,
             n_voltages: diagram.num_nodes.saturating_sub(1),
         }
     }
