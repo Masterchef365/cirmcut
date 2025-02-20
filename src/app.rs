@@ -5,8 +5,7 @@ use std::{
 };
 
 use cirmcut_sim::{
-    solver::{Solver, SolverConfig, SolverMode},
-    PrimitiveDiagram, SimOutputs, TwoTerminalComponent,
+    solver::{Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
 };
 use egui::{Color32, DragValue, Key, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
 
@@ -335,7 +334,7 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::CurrentSource(0.1),
                         );
                     }
-                    /*if ui.button("PNP").clicked() {
+                    if ui.button("PNP").clicked() {
                         rebuild_sim = true;
                         self.editor.new_threeterminal(
                             &mut self.current_file.diagram,
@@ -350,7 +349,7 @@ impl eframe::App for CircuitApp {
                             pos,
                             ThreeTerminalComponent::NTransistor(100.0),
                         );
-                    }*/
+                    }
                     /*
                     if ui.button("Delete").clicked() {
                         self.editor.delete();
@@ -454,10 +453,14 @@ fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> Dia
                 })
             })
             .collect(),
-        three_terminal: diagram
-            .three_terminal
-            .iter()
-            .map(|(indices, _)| indices.map(|_| DiagramWireState::default()))
+        three_terminal: output.three_terminal_current.iter().zip(&diagram
+            .three_terminal)
+            .map(|(&current, (indices, _))| {
+                [0, 1, 2].map(|offset| DiagramWireState {
+                    voltage: output.voltages[indices[offset]],
+                    current: current[offset],
+                })
+            })
             .collect(),
     }
 }
