@@ -762,7 +762,6 @@ fn draw_twoterminal_component(
     selected: bool,
     vis: &VisualizationOptions,
 ) {
-    draw_component_value(painter, pos, component);
     match component {
         TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected, vis),
         TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected, vis),
@@ -777,6 +776,7 @@ fn draw_twoterminal_component(
             draw_current_source(painter, pos, wires, selected, vis)
         }
     }
+    draw_component_value(painter, pos, component);
 }
 
 impl DiagramState {
