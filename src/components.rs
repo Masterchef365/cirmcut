@@ -52,7 +52,7 @@ pub fn draw_transistor(
         vis,
     );
 
-    emitter_wire.wire(painter, emitter_in, emitter_input_tap, selected, vis);
+    emitter_wire.wire(painter, emitter_input_tap, emitter_in, selected, vis);
 
     collector_wire.wire(
         painter,

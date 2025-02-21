@@ -116,9 +116,11 @@ impl Solver {
             nr_iters += 1;
         }
 
+        /*
         if nr_iters > 0 {
             dbg!(nr_iters);
         }
+        */
 
         [self.soln_vector] = new_state;
 
@@ -130,10 +132,29 @@ impl Solver {
         // Last node voltage is ground!
         voltages.push(0.0);
 
-        let two_terminal_current = self.soln_vector[self.map.state_map.currents()].to_vec();
+        let mut total_idx = 0;
+        let mut two_terminal_current = vec![];
+
+        for _ in &diagram.two_terminal {
+            two_terminal_current.push(self.soln_vector[total_idx]);
+            total_idx += 1;
+        }
+
+        let mut three_terminal_current = vec![];
+        for _ in &diagram.three_terminal {
+            let ab_current = self.soln_vector[total_idx];
+            total_idx += 1;
+            let bc_current = self.soln_vector[total_idx];
+            total_idx += 1;
+
+            let c = bc_current;
+            let b = bc_current - ab_current;
+            let a = ab_current;
+
+            three_terminal_current.push([a, b, c]);
+        }
 
         // TODO: Transistors!
-        let three_terminal_current = diagram.three_terminal.iter().map(|_| [0.0; 3]).collect();
 
         SimOutputs {
             voltages,
