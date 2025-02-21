@@ -18,7 +18,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "eframe template",
+        "Cirmcut simulamtor",
         native_options,
         Box::new(|cc| Ok(Box::new(eframe_template::CircuitApp::new(cc)))),
     )

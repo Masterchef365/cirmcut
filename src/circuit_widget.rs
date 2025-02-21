@@ -43,7 +43,7 @@ impl Default for DiagramWireState {
     fn default() -> Self {
         Self {
             voltage: 5.0,
-            current: 1.0,
+            current: 1e-3,
         }
     }
 }

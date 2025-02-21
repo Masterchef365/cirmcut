@@ -47,7 +47,7 @@ impl Default for CircuitApp {
             error: None,
             sim: None,
             editor: DiagramEditor::new(),
-            current_file: CircuitFile::default(),
+            current_file: ron::from_str(include_str!("colpitts2.ckt")).unwrap_or_default(),
             paused: false,
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
             debug_draw: false,
