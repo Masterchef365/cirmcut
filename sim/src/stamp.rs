@@ -241,10 +241,11 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
 
                 let (diode_coeff_bc, mut diode_param_bc) = diode_eq(-sign * last_iteration[bc_voltage_drop_idx]);
 
-                let af = 0.998;
+                let af = 0.98;
+                let ar = 0.1;
 
                 diode_param_bc += af * last_iteration[ab_current_idx];
-                diode_param_ab += af * last_iteration[bc_current_idx];
+                diode_param_ab += ar * last_iteration[bc_current_idx];
 
                 matrix.append(ab_law_idx, ab_voltage_drop_idx, diode_coeff_ab);
                 matrix.append(ab_law_idx, ab_current_idx, 1.0);
