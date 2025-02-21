@@ -143,11 +143,20 @@ impl eframe::App for CircuitApp {
                         self.sim = None;
                     }
                     ui.separator();
-                    if ui.button("Open").clicked() {
-                        self.open_file(ui.ctx());
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        if ui.button("Open").clicked() {
+                            self.open_file(ui.ctx());
+                        }
+                        if ui.button("Save").clicked() {
+                            self.save_file(ui.ctx());
+                        }
+                        ui.separator();
                     }
-                    if ui.button("Save").clicked() {
-                        self.save_file(ui.ctx());
+
+                    if ui.button("Load Example circuit").clicked() {
+                        self.current_file = Self::default().current_file;
+                        self.sim = None;
                     }
                     egui::widgets::global_theme_preference_buttons(ui);
                 });
@@ -410,7 +419,7 @@ impl eframe::App for CircuitApp {
                 } else {
                     self.error = None;
                 }
-                //println!("Time: {:.03} ms", start.elapsed().as_secs_f32() * 1000.0);
+                //println!("Time: {:.03} ms = {:.03} fps", start.elapsed().as_secs_f32() * 1000.0, 1.0 / (start.elapsed().as_secs_f32()));
             }
         }
     }
