@@ -28,7 +28,7 @@ pub fn draw_transistor(
     let base_input_tap = center + orient_y * 0.25;
     let junction_radius = 0.25;
 
-    base_wire.wire(painter, base_in, base_input_tap, selected, vis);
+    base_wire.wire(painter, base_input_tap, base_in, selected, vis);
     DiagramWireState {voltage: 0.0, current: 0.0}.wire(
         painter,
         base_input_tap - orient_x * junction_radius,
