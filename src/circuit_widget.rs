@@ -833,7 +833,9 @@ fn edit_twoterminal_component(
 
     let voltage = wires[1].voltage - wires[0].voltage;
     ui.label(format!("Vd: {}", to_metric_prefix(voltage, 'V')));
-    ui.label(format!("I: {}", to_metric_prefix(wires[0].current, 'A')));
+    let current = wires[0].current;
+    ui.label(format!("I: {}", to_metric_prefix(current, 'A')));
+    ui.weak(format!("P: {}", to_metric_prefix(voltage * current, 'W')));
 }
 
 impl Default for VisualizationOptions {
