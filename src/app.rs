@@ -133,7 +133,7 @@ impl eframe::App for CircuitApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-        //ctx.request_repaint();
+        ctx.request_repaint();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
