@@ -7,7 +7,7 @@ use std::{
 use cirmcut_sim::{
     solver::{Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
 };
-use egui::{Color32, DragValue, Key, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
+use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
 
 use crate::circuit_widget::{
     draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
@@ -159,6 +159,10 @@ impl eframe::App for CircuitApp {
                         self.sim = None;
                     }
                     egui::widgets::global_theme_preference_buttons(ui);
+                });
+
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.hyperlink_to("Source code on GitHub", "https://github.com/Masterchef365/cirmcut");
                 });
             });
         });
