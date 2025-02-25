@@ -35,7 +35,7 @@ pub struct CircuitApp {
     paused: bool,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
 struct CircuitFile {
     diagram: Diagram,
     cfg: SolverConfig,
@@ -163,6 +163,10 @@ impl eframe::App for CircuitApp {
                     }
                     egui::widgets::global_theme_preference_buttons(ui);
                 });
+
+                if ui.button("Reset view").clicked() {
+                    self.view_rect = Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0));
+                }
 
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.hyperlink_to("Source code on GitHub", "https://github.com/Masterchef365/cirmcut");

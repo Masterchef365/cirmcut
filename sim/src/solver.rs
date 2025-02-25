@@ -76,15 +76,17 @@ impl Solver {
     }
 
     fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
-        let prev_time_step_soln = &self.soln_vector;
+        let total_vect_len = cfg.n_timesteps * self.map.vector_size();
+        let prev_time_step_soln = &self.soln_vector[cfg.n_timesteps.saturating_sub(1) * self.map.vector_size()..];
+        dbg!(&prev_time_step_soln.len());
 
-        let mut new_state = prev_time_step_soln.clone();
+        let mut new_state: Vec<f64> = prev_time_step_soln.iter().cycle().take(total_vect_len).copied().collect();
 
         let mut last_err = 9e99;
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state, &prev_time_step_soln, cfg.n_timesteps);
+            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state, prev_time_step_soln, cfg.n_timesteps);
 
             if params.len() == 0 {
                 return Ok(());

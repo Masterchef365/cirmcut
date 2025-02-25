@@ -32,7 +32,6 @@ pub fn stamp(
             diagram,
             last_iteration,
             (time_step_idx == 0).then(|| last_timestep),
-            n_timesteps,
         );
     }
 
@@ -48,7 +47,6 @@ fn stamp_timestep(
     diagram: &PrimitiveDiagram,
     last_iteration: &[f64],
     last_timestep: Option<&[f64]>,
-    n_timesteps: usize,
 ) {
     let n = map.vector_size();
     let offset = n * time_step_idx;
