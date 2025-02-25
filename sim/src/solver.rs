@@ -61,24 +61,24 @@ impl Solver {
     }
 
     fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
-        /*
-        let prev_time_step_soln = &self.soln_vector;
+        let prev_time_step_soln = &self.soln_vector[cfg.n_timesteps.saturating_sub(1) * self.map.vector_size()..];
 
-        let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
+        let total_vect_len = cfg.n_timesteps * self.map.vector_size();
+        let copies: Vec<f64> = prev_time_step_soln.iter().cycle().take(total_vect_len).copied().collect();
+
+        let (matrix, params) = stamp(dt, &self.map, diagram, &copies, &prev_time_step_soln, cfg.n_timesteps);
 
         let mut new_soln = params;
         cfg.linear_sol.solve(&matrix, &mut new_soln, cfg.dx_soln_tolerance)?;
 
         self.soln_vector = new_soln;
 
-        */
         Ok(())
     }
 
     fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
         let total_vect_len = cfg.n_timesteps * self.map.vector_size();
         let prev_time_step_soln = &self.soln_vector[cfg.n_timesteps.saturating_sub(1) * self.map.vector_size()..];
-        dbg!(&prev_time_step_soln.len());
 
         let mut new_state: Vec<f64> = prev_time_step_soln.iter().cycle().take(total_vect_len).copied().collect();
 
