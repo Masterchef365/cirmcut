@@ -27,14 +27,15 @@ pub struct SolverConfig {
     /// When solving F Delta x = -f, which tolerance do we solve the system to?
     pub dx_soln_tolerance: f64,
     pub mode: SolverMode,
+    pub n_timesteps: usize,
 }
 
 impl Solver {
-    pub fn new(diagram: &PrimitiveDiagram) -> Self {
+    pub fn new(diagram: &PrimitiveDiagram, n_timesteps: usize) -> Self {
         let map = PrimitiveDiagramMapping::new(diagram);
 
         Self {
-            soln_vector: vec![0.0; map.vector_size()],
+            soln_vector: vec![0.0; map.vector_size() * n_timesteps],
             map,
         }
     }
@@ -48,6 +49,7 @@ impl Solver {
     }
 
     fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        /*
         let prev_time_step_soln = &self.soln_vector;
 
         let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
@@ -57,19 +59,20 @@ impl Solver {
 
         self.soln_vector = new_soln;
 
+        */
         Ok(())
     }
 
     fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
-        let mut new_state = [prev_time_step_soln.clone()];
+        let mut new_state = prev_time_step_soln.clone();
 
         let mut last_err = 9e99;
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln);
+            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state, &prev_time_step_soln, cfg.n_timesteps);
 
             if params.len() == 0 {
                 return Ok(());
@@ -83,7 +86,7 @@ impl Solver {
 
 
             let mut new_state_sparse = Trpl::new();
-            for (i, val) in new_state[0].iter().enumerate() {
+            for (i, val) in new_state.iter().enumerate() {
                 new_state_sparse.append(i, 0, *val);
             }
             let new_state_sparse = new_state_sparse.to_sprs();
@@ -105,7 +108,7 @@ impl Solver {
             }
 
             // w += dw * step size
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
+            new_state.iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
 
             if err < cfg.nr_tolerance {
                 break;
@@ -122,13 +125,15 @@ impl Solver {
         }
         */
 
-        [self.soln_vector] = new_state;
+        self.soln_vector = new_state;
 
         Ok(())
     }
 
-    pub fn state(&self, diagram: &PrimitiveDiagram) -> SimOutputs {
-        let mut voltages = self.soln_vector[self.map.state_map.voltages()].to_vec();
+    pub fn state(&self, diagram: &PrimitiveDiagram, time_step_idx: usize) -> SimOutputs {
+        let offset = time_step_idx * self.map.vector_size();
+
+        let mut voltages = self.soln_vector[offset..][self.map.state_map.voltages()].to_vec();
         // Last node voltage is ground!
         voltages.push(0.0);
 
@@ -136,15 +141,15 @@ impl Solver {
         let mut two_terminal_current = vec![];
 
         for _ in &diagram.two_terminal {
-            two_terminal_current.push(self.soln_vector[total_idx]);
+            two_terminal_current.push(self.soln_vector[offset..][total_idx]);
             total_idx += 1;
         }
 
         let mut three_terminal_current = vec![];
         for _ in &diagram.three_terminal {
-            let ab_current = self.soln_vector[total_idx];
+            let ab_current = self.soln_vector[offset..][total_idx];
             total_idx += 1;
-            let bc_current = self.soln_vector[total_idx];
+            let bc_current = self.soln_vector[offset..][total_idx];
             total_idx += 1;
 
             let c = bc_current;
@@ -172,6 +177,7 @@ impl Default for SolverConfig {
             nr_tolerance: 1e-6,
             nr_step_size: 1e-1,
             max_nr_iters: 2000,
+            n_timesteps: 2,
         }
     }
 }

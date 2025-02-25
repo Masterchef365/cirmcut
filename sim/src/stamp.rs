@@ -18,13 +18,13 @@ pub fn stamp(
     last_timestep: &[f64],
     n_timesteps: usize,
 ) -> (Sprs, Vec<f64>) {
-    let n = map.vector_size() * n_timesteps;
+    let n = map.vector_size();
     let mut matrix = Trpl::new();
-    let mut params = vec![0_f64; n];
+    let mut params = vec![0_f64; n * n_timesteps];
 
     for time_step_idx in 0..n_timesteps {
         stamp_timestep(
-            &mut params[time_step_idx * n..time_step_idx * (n + 1)],
+            &mut params,
             &mut matrix,
             time_step_idx,
             dt,
@@ -50,7 +50,7 @@ fn stamp_timestep(
     last_timestep: Option<&[f64]>,
     n_timesteps: usize,
 ) {
-    let n = map.vector_size() * n_timesteps;
+    let n = map.vector_size();
     let offset = n * time_step_idx;
     let prev_timestep_offset = n.saturating_sub(1) * time_step_idx;
 
