@@ -19,6 +19,10 @@ pub fn stamp(
     n_timesteps: usize,
 ) -> (Sprs, Vec<f64>) {
     let n = map.vector_size();
+
+    assert_eq!(last_timestep.len(), n);
+    assert_eq!(last_iteration.len(), n * n_timesteps);
+
     let mut matrix = Trpl::new();
     let mut params = vec![0_f64; n * n_timesteps];
 
