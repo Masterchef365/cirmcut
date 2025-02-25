@@ -230,7 +230,7 @@ fn stamp_timestep(
                 }
             }
             TwoTerminalComponent::Diode => {
-                let (coeff, param) = diode_eq(last_iteration[voltage_drop_idx]);
+                let (coeff, param) = diode_eq(last_iteration[offset + voltage_drop_idx]);
                 matrix.append(offset + law_idx, offset + voltage_drop_idx, coeff);
                 matrix.append(offset + law_idx, offset + current_idx, 1.0);
                 params[offset + law_idx] = param;
@@ -263,16 +263,16 @@ fn stamp_timestep(
                 };
 
                 let (diode_coeff_ab, mut diode_param_ab) =
-                    diode_eq(sign * last_iteration[ab_voltage_drop_idx]);
+                    diode_eq(sign * last_iteration[offset + ab_voltage_drop_idx]);
 
                 let (diode_coeff_bc, mut diode_param_bc) =
-                    diode_eq(-sign * last_iteration[bc_voltage_drop_idx]);
+                    diode_eq(-sign * last_iteration[offset + bc_voltage_drop_idx]);
 
                 let af = 0.98;
                 let ar = 0.1;
 
-                diode_param_bc += af * last_iteration[ab_current_idx];
-                diode_param_ab += ar * last_iteration[bc_current_idx];
+                diode_param_bc += af * last_iteration[offset + ab_current_idx];
+                diode_param_ab += ar * last_iteration[offset + bc_current_idx];
 
                 matrix.append(offset + ab_law_idx, offset + ab_voltage_drop_idx, diode_coeff_ab);
                 matrix.append(offset + ab_law_idx, offset + ab_current_idx, 1.0);
