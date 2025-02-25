@@ -24,6 +24,8 @@ pub struct CircuitApp {
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
 
+    slice: usize,
+
     #[serde(skip)]
     sim: Option<Solver>,
 
@@ -43,6 +45,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
+            slice: 0,
             vis_opt: VisualizationOptions::default(),
             error: None,
             sim: None,
@@ -71,7 +74,7 @@ impl CircuitApp {
     fn state(&self) -> Option<DiagramState> {
         self.sim.as_ref().map(|sim| {
             let diag = self.current_file.diagram.to_primitive_diagram();
-            solver_to_diagramstate(sim.state(&diag), &diag)
+            solver_to_diagramstate(sim.state(&diag, self.slice), &diag)
         })
     }
 
@@ -222,6 +225,18 @@ impl eframe::App for CircuitApp {
                         .speed(1e-6)
                         .prefix("Matrix solve tol: "),
                 );
+                rebuild_sim |= ui.add(
+                    DragValue::new(&mut self.current_file.cfg.n_timesteps)
+                        .range(1..=usize::MAX)
+                        .prefix("# of timesteps: "),
+                ).changed();
+                ui.add(
+                    DragValue::new(&mut self.slice)
+                        .range(0..=self.current_file.cfg.n_timesteps - 1)
+                        .prefix("Time slice index: "),
+                );
+
+
 
                 ui.horizontal(|ui| {
                     ui.label("Circuit: ");
@@ -426,6 +441,7 @@ impl eframe::App for CircuitApp {
         if rebuild_sim {
             self.sim = Some(Solver::new(
                 &self.current_file.diagram.to_primitive_diagram(),
+                self.current_file.cfg.n_timesteps,
             ));
         }
 
