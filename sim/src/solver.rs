@@ -85,25 +85,16 @@ impl Solver {
                 return Ok(());
             }
 
-            let mut dense_b = Trpl::new();
-            for (i, val) in params.iter().enumerate() {
-                dense_b.append(i, 0, *val);
-            }
-            let dense_b = dense_b.to_sprs();
+            let dense_b = vector_to_sparse(&params);
 
-
-            let mut new_state_sparse = Trpl::new();
-            for (i, val) in new_state[0].iter().enumerate() {
-                new_state_sparse.append(i, 0, *val);
-            }
-            let new_state_sparse = new_state_sparse.to_sprs();
+            let new_state_sparse = vector_to_sparse(&new_state[0]);
 
             // Calculate -f(w_n(K)) = b(w_n(K)) - A(w_n(K)) w_n(K)
             let ax = &matrix * &new_state_sparse;
             let f = dense_b - ax;
 
             // Solve A(w_n(K)) dw = -f for dw
-            let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
+            let mut delta: Vec<f64> = sparse_to_vector(&f);
             cfg.linear_sol.solve(&matrix, &mut delta, cfg.dx_soln_tolerance)?;
 
             // dw dot dw
@@ -196,6 +187,19 @@ impl LinearSolver {
     }
 }
 
+fn vector_to_sparse(v: &[f64]) -> Sprs {
+    let mut mat = Trpl::new();
+    for (i, val) in v.iter().enumerate() {
+        mat.append(i, 0, *val);
+    }
+    mat.to_sprs()
+}
+
+fn sparse_to_vector(s: &Sprs) -> Vec<f64> {
+    s.to_dense().iter().flatten().copied().collect()
+}
+
 fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
-    todo!()
+    //todo!()
+    Ok(())
 }
