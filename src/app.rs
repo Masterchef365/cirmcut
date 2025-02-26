@@ -5,9 +5,12 @@ use std::{
 };
 
 use cirmcut_sim::{
-    solver::{LinearSolver, Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
+    solver::{LinearSolver, Solver, SolverConfig, SolverMode},
+    PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent,
 };
-use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
+use egui::{
+    Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand,
+};
 
 use crate::circuit_widget::{
     draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
@@ -25,6 +28,7 @@ pub struct CircuitApp {
     vis_opt: VisualizationOptions,
 
     slice: usize,
+    steps_per_frame: usize,
 
     #[serde(skip)]
     sim: Option<Solver>,
@@ -45,6 +49,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
+            steps_per_frame: 1,
             slice: 0,
             vis_opt: VisualizationOptions::default(),
             error: None,
@@ -169,7 +174,10 @@ impl eframe::App for CircuitApp {
                 }
 
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.hyperlink_to("Source code on GitHub", "https://github.com/Masterchef365/cirmcut");
+                    ui.hyperlink_to(
+                        "Source code on GitHub",
+                        "https://github.com/Masterchef365/cirmcut",
+                    );
                 });
             });
         });
@@ -229,18 +237,24 @@ impl eframe::App for CircuitApp {
                         .speed(1e-6)
                         .prefix("Matrix solve tol: "),
                 );
-                rebuild_sim |= ui.add(
-                    DragValue::new(&mut self.current_file.cfg.n_timesteps)
-                        .range(1..=usize::MAX)
-                        .prefix("# of timesteps: "),
-                ).changed();
+                rebuild_sim |= ui
+                    .add(
+                        DragValue::new(&mut self.current_file.cfg.n_timesteps)
+                            .range(1..=usize::MAX)
+                            .prefix("# of timesteps: "),
+                    )
+                    .changed();
                 ui.add(
                     DragValue::new(&mut self.slice)
                         .range(0..=self.current_file.cfg.n_timesteps - 1)
                         .prefix("Time slice index: "),
                 );
-
-
+                ui.add(
+                    DragValue::new(&mut self.steps_per_frame)
+                        .range(1..=usize::MAX)
+                        .prefix("# of steps per frame: "),
+                )
+                .changed();
 
                 ui.horizontal(|ui| {
                     ui.label("Circuit: ");
@@ -453,19 +467,28 @@ impl eframe::App for CircuitApp {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
-                //let start = std::time::Instant::now();
-                if let Err(e) = sim.step(
-                    self.current_file.dt,
-                    &self.current_file.diagram.to_primitive_diagram(),
-                    &self.current_file.cfg,
-                ) {
-                    eprintln!("{}", e);
-                    self.error = Some(e);
-                    self.paused = true;
-                } else {
-                    self.error = None;
+                let start = std::time::Instant::now();
+                for _ in 0..self.steps_per_frame {
+                    if let Err(e) = sim.step(
+                        self.current_file.dt,
+                        &self.current_file.diagram.to_primitive_diagram(),
+                        &self.current_file.cfg,
+                    ) {
+                        eprintln!("{}", e);
+                        self.error = Some(e);
+                        self.paused = true;
+                    } else {
+                        self.error = None;
+                    }
                 }
-                //println!("Time: {:.03} ms = {:.03} fps", start.elapsed().as_secs_f32() * 1000.0, 1.0 / (start.elapsed().as_secs_f32()));
+                let elap = start.elapsed();
+                println!(
+                    "Time per step: {:.03} ms, {:.03} samples/sec",
+                    elap.as_secs_f32() * 1000.0 / self.steps_per_frame as f32,
+                    (self.current_file.cfg.n_timesteps) as f32
+                        * self.steps_per_frame as f32
+                        / elap.as_secs_f32()
+                );
             }
         }
     }
@@ -508,8 +531,10 @@ fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> Dia
                 })
             })
             .collect(),
-        three_terminal: output.three_terminal_current.iter().zip(&diagram
-            .three_terminal)
+        three_terminal: output
+            .three_terminal_current
+            .iter()
+            .zip(&diagram.three_terminal)
             .map(|(&current, (indices, _))| {
                 [0, 1, 2].map(|offset| DiagramWireState {
                     voltage: output.voltages[indices[offset]],
