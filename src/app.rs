@@ -5,7 +5,7 @@ use std::{
 };
 
 use cirmcut_sim::{
-    solver::{Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
+    solver::{LinearSolver, Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
 };
 use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
 
@@ -224,6 +224,7 @@ impl eframe::App for CircuitApp {
                 );
 
                 ui.horizontal(|ui| {
+                    ui.label("Circuit: ");
                     ui.selectable_value(
                         &mut self.current_file.cfg.mode,
                         SolverMode::NewtonRaphson,
@@ -235,6 +236,21 @@ impl eframe::App for CircuitApp {
                         "Linear",
                     );
                 });
+
+                ui.horizontal(|ui| {
+                    ui.label("Linear solver: ");
+                    ui.selectable_value(
+                        &mut self.current_file.cfg.linear_sol,
+                        LinearSolver::LUDecomposition,
+                        "LU-Decomp.",
+                    );
+                    ui.selectable_value(
+                        &mut self.current_file.cfg.linear_sol,
+                        LinearSolver::BiconjugateGradient,
+                        "Conjugate grad.",
+                    );
+                });
+
 
                 if ui.button("Default cfg").clicked() {
                     self.current_file.cfg = Default::default();

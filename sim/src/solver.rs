@@ -27,6 +27,16 @@ pub struct SolverConfig {
     /// When solving F Delta x = -f, which tolerance do we solve the system to?
     pub dx_soln_tolerance: f64,
     pub mode: SolverMode,
+    #[serde(default)]
+    pub linear_sol: LinearSolver,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LinearSolver {
+    #[default]
+    LUDecomposition,
+    BiconjugateGradient,
 }
 
 impl Solver {
@@ -53,7 +63,7 @@ impl Solver {
         let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
 
         let mut new_soln = params;
-        lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
+        cfg.linear_sol.solve(&matrix, &mut new_soln, cfg.dx_soln_tolerance)?;
 
         self.soln_vector = new_soln;
 
@@ -94,7 +104,7 @@ impl Solver {
 
             // Solve A(w_n(K)) dw = -f for dw
             let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
-            lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
+            cfg.linear_sol.solve(&matrix, &mut delta, cfg.dx_soln_tolerance)?;
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();
@@ -167,6 +177,7 @@ impl Solver {
 impl Default for SolverConfig {
     fn default() -> Self {
         SolverConfig {
+            linear_sol: LinearSolver::LUDecomposition,
             mode: SolverMode::default(),
             dx_soln_tolerance: 1e-3,
             nr_tolerance: 1e-6,
@@ -174,4 +185,17 @@ impl Default for SolverConfig {
             max_nr_iters: 2000,
         }
     }
+}
+
+impl LinearSolver {
+    fn solve(&self, a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
+        match self {
+            Self::LUDecomposition => lusol(a, b, -1, tolerance).map_err(|e| e.to_string()),
+            Self::BiconjugateGradient => bicg(a, b, tolerance),
+        }
+    }
+}
+
+fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
+    todo!()
 }
