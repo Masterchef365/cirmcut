@@ -54,7 +54,7 @@ fn stamp_timestep(
 ) {
     let n = map.vector_size();
     let offset = n * time_step_idx;
-    let prev_timestep_offset = n.saturating_sub(1) * time_step_idx;
+    let prev_timestep_offset = n * time_step_idx.saturating_sub(1);
 
     // Stamp current laws
     let mut total_current_idx = 0;
