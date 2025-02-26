@@ -199,7 +199,62 @@ fn sparse_to_vector(s: &Sprs) -> Vec<f64> {
     s.to_dense().iter().flatten().copied().collect()
 }
 
+/// Gets the value of a single element matrix
+fn get_one(a: &Sprs) -> f64 {
+    debug_assert_eq!(a.to_dense().len(), 1);
+    debug_assert_eq!(a.to_dense()[0].len(), 1);
+    a.to_dense()[0][0]
+}
+
 fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
-    //todo!()
+    let x = vec![1e-12; b.len()];
+    let mut x = vector_to_sparse(&x);
+    let mut xt = rsparse::transpose(&x);
+
+    let out = b;
+    let b = vector_to_sparse(&out);
+    let bt = rsparse::transpose(&b);
+
+    let at = rsparse::transpose(&a);
+
+    let mut r = b - a * &x;
+    let mut rt = bt - &xt * at;
+
+    let mut p = r.clone();
+    let mut pt = rt.clone();
+
+    eprintln!("\nSTART BICG");
+    for _ in 0..100 {
+        let rr = get_one(&(&rt * &r));
+        let pap = get_one(&(&pt * a * &p));
+        //dbg!(rr, pap);
+        let alpha = rr / pap;
+        //dbg!(alpha);
+
+        let res = get_one(&(rsparse::transpose(&r) * &r));
+        dbg!(res);
+        if res.is_nan() {
+            panic!("NaN result");
+        }
+        if res < tolerance {
+            break;
+        }
+
+        x = &x + alpha * &p;
+        xt = &xt + alpha * &pt;
+
+        r = &r - alpha * a * &p;
+        rt = &rt - alpha * &pt * a;
+
+        let rr_new = get_one(&(&rt * &r));
+        //dbg!(rr_new);
+        let beta = rr_new / rr;
+        //dbg!(beta);
+        p = &r + beta * &p;
+        pt = &rt + beta * &pt;
+    }
+
+    out.copy_from_slice(&sparse_to_vector(&x));
+
     Ok(())
 }
