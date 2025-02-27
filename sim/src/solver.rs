@@ -47,7 +47,7 @@ impl Solver {
         let map = PrimitiveDiagramMapping::new(diagram);
 
         Self {
-            soln_vector: vec![0.0; map.vector_size() * n_timesteps],
+            soln_vector: vec![1e-2; map.vector_size() * n_timesteps],
             map,
         }
     }
@@ -61,6 +61,8 @@ impl Solver {
     }
 
     fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        let initial_guess = self.soln_vector.clone();
+
         let prev_time_step_soln = &self.soln_vector[cfg.n_timesteps.saturating_sub(1) * self.map.vector_size()..];
 
         let total_vect_len = cfg.n_timesteps * self.map.vector_size();
@@ -69,7 +71,7 @@ impl Solver {
         let (matrix, params) = stamp(dt, &self.map, diagram, &copies, &prev_time_step_soln, cfg.n_timesteps);
 
         let mut new_soln = params;
-        cfg.linear_sol.solve(&matrix, &mut new_soln, cfg.dx_soln_tolerance)?;
+        cfg.linear_sol.solve(&matrix, &initial_guess, &mut new_soln, cfg.dx_soln_tolerance)?;
 
         self.soln_vector = new_soln;
 
@@ -77,6 +79,8 @@ impl Solver {
     }
 
     fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        let initial_guess = self.soln_vector.clone();
+
         let total_vect_len = cfg.n_timesteps * self.map.vector_size();
         let prev_time_step_soln = &self.soln_vector[cfg.n_timesteps.saturating_sub(1) * self.map.vector_size()..];
 
@@ -106,7 +110,8 @@ impl Solver {
 
             // Solve A(w_n(K)) dw = -f for dw
             let mut delta: Vec<f64> = sparse_to_vector(&f);
-            cfg.linear_sol.solve(&matrix, &mut delta, cfg.dx_soln_tolerance)?;
+            let num = delta.len();
+            cfg.linear_sol.solve(&matrix, &initial_guess, &mut delta, cfg.dx_soln_tolerance)?;
 
             // dw dot dw
             let err = delta.iter().map(|f| f*f).sum::<f64>();
@@ -193,17 +198,26 @@ impl Default for SolverConfig {
 }
 
 impl LinearSolver {
-    fn solve(&self, a: &Sprs, b: &mut Vec<f64>, tolerance: f64) -> Result<(), String> {
+    fn solve(&self, a: &Sprs, x_init: &[f64], b: &mut Vec<f64>, tolerance: f64) -> Result<(), String> {
         let inst = std::time::Instant::now();
 
         match self {
             Self::LUDecomposition => lusol(a, b, -1, tolerance).map_err(|e| e.to_string()),
-            Self::BiconjugateGradient => bicg(a, b, tolerance),
-            Self::GenMinRes => gmres(a, b.to_vec().as_slice(), b, 100, tolerance),
+            Self::BiconjugateGradient => bicg(a, x_init, b, tolerance),
+            Self::GenMinRes => gmres(a, &x_init, b, 100, tolerance),
+            //Self::GenMinRes => gmres(a, b.to_vec().as_slice(), b, 100, tolerance),
+            /*Self::GenMinRes => {
+                let mut x_changed = x_init.to_vec();
+                dbg!(b.len(), x_changed.len());
+                gmres(a, b, &mut x_changed, 100, tolerance)?;
+                b.copy_from_slice(&x_changed);
+                Ok(())
+            }
+            */
         }?;
 
         let time_ms = inst.elapsed().as_secs_f32() * 1e3;
-        println!("{} ms", time_ms);
+        //println!("{} ms", time_ms);
 
         Ok(())
     }
@@ -228,9 +242,8 @@ fn get_one(a: &Sprs) -> f64 {
     a.to_dense()[0][0]
 }
 
-fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
-    let x = vec![1e-12; b.len()];
-    let mut x = vector_to_sparse(&x);
+fn bicg(a: &Sprs, x_init: &[f64], b: &mut [f64], tolerance: f64) -> Result<(), String> {
+    let mut x = vector_to_sparse(&x_init);
     let mut xt = rsparse::transpose(&x);
 
     let out = b;
@@ -239,8 +252,8 @@ fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
 
     let at = rsparse::transpose(&a);
 
-    let mut r = b - a * &x;
-    let mut rt = bt - &xt * at;
+    let mut r = &b - a * &x;
+    let mut rt = &bt - &xt * at;
 
     let mut p = r.clone();
     let mut pt = rt.clone();
@@ -254,7 +267,7 @@ fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
         //dbg!(alpha);
 
         let res = get_one(&(rsparse::transpose(&r) * &r));
-        dbg!(res);
+        //dbg!(res);
         if res.is_nan() {
             panic!("NaN result");
         }
@@ -264,6 +277,15 @@ fn bicg(a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
 
         x = &x + alpha * &p;
         xt = &xt + alpha * &pt;
+
+        let resi = &b - a * &x;
+        let resb = &bt - &xt * a;
+        let resi = get_one(&(rsparse::transpose(&resi) * &resi));
+        let resb = get_one(&(rsparse::transpose(&resb) * &resb));
+        dbg!((resi, resb));
+
+
+        //dbg!(&x.to_dense());
 
         r = &r - alpha * a * &p;
         rt = &rt - alpha * &pt * a;
