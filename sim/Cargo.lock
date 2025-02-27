@@ -6,8 +6,16 @@ version = 4
 name = "cirmcut-sim"
 version = "0.1.0"
 dependencies = [
+ "gmres",
  "rsparse",
  "serde",
+]
+
+[[package]]
+name = "gmres"
+version = "1.0.0"
+dependencies = [
+ "rsparse",
 ]
 
 [[package]]

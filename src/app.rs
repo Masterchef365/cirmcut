@@ -249,6 +249,12 @@ impl eframe::App for CircuitApp {
                         LinearSolver::BiconjugateGradient,
                         "Conjugate grad.",
                     );
+                    ui.selectable_value(
+                        &mut self.current_file.cfg.linear_sol,
+                        LinearSolver::GenMinRes,
+                        "GMRES",
+                    );
+
                 });
 
 

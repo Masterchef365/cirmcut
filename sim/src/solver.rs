@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use gmres::gmres;
 use rsparse::{data::{Sprs, Trpl}, lusol};
 
 use crate::{map::PrimitiveDiagramMapping, stamp::stamp, PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
@@ -37,6 +38,7 @@ pub enum LinearSolver {
     #[default]
     LUDecomposition,
     BiconjugateGradient,
+    GenMinRes,
 }
 
 impl Solver {
@@ -179,11 +181,19 @@ impl Default for SolverConfig {
 }
 
 impl LinearSolver {
-    fn solve(&self, a: &Sprs, b: &mut [f64], tolerance: f64) -> Result<(), String> {
+    fn solve(&self, a: &Sprs, b: &mut Vec<f64>, tolerance: f64) -> Result<(), String> {
+        let inst = std::time::Instant::now();
+
         match self {
             Self::LUDecomposition => lusol(a, b, -1, tolerance).map_err(|e| e.to_string()),
             Self::BiconjugateGradient => bicg(a, b, tolerance),
-        }
+            Self::GenMinRes => gmres(a, b.to_vec().as_slice(), b, 100, tolerance),
+        }?;
+
+        let time_ms = inst.elapsed().as_secs_f32() * 1e3;
+        println!("{} ms", time_ms);
+
+        Ok(())
     }
 }
 
