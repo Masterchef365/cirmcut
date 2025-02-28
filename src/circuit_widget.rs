@@ -48,9 +48,11 @@ impl Default for DiagramWireState {
     }
 }
 
+pub type Selection = (usize, bool);
+
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
-    selected: Option<(usize, bool)>,
+    selected: Option<Selection>,
 }
 
 pub fn cellpos_to_egui((x, y): CellPos) -> Pos2 {
@@ -197,6 +199,10 @@ impl DiagramEditor {
 
     pub fn reset_selection(&mut self) {
         self.selected = None;
+    }
+
+    pub fn selection(&self) -> Option<Selection> {
+        self.selected
     }
 
     pub fn edit(
