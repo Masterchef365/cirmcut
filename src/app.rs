@@ -64,9 +64,15 @@ impl CircuitApp {
         let mut src = InteractiveCircuitSource::new(cmd_rx, data_tx, save.current_file.clone());
 
         std::thread::spawn(move || {
+            let mut n = 0;
+            let s = std::time::Instant::now();
             loop {
-                dbg!(src.next());
-                std::thread::sleep_ms(1000 / 60);
+                src.next();
+                n += 1;
+                if n % 1000 == 0 {
+                    eprintln!("{}", n as f32 / s.elapsed().as_secs_f32())
+                }
+                //std::thread::sleep_ms(1000 / 60);
             }
         });
 
