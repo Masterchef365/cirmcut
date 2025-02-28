@@ -1,16 +1,23 @@
 use std::{
     ffi::OsStr,
     fs::File,
-    path::{Path, PathBuf}, sync::mpsc::{channel, Receiver, Sender}, time::Instant,
+    path::{Path, PathBuf},
+    sync::mpsc::{channel, Receiver, Sender},
+    time::Instant,
 };
 
 use cirmcut_sim::{
-    solver::{Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
+    solver::{Solver, SolverConfig, SolverMode},
+    PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent,
 };
-use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
+use egui::{
+    Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand,
+};
+use rodio::{source::SineWave, OutputStream, Source};
 
 use crate::circuit_widget::{
-    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState, Selection, VisualizationOptions
+    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState, Selection,
+    VisualizationOptions,
 };
 
 pub struct CircuitApp {
@@ -20,6 +27,7 @@ pub struct CircuitApp {
     state: Option<DiagramState>,
     cmd_tx: Sender<AudioCommand>,
     data_rx: Receiver<AudioReturn>,
+    stream: OutputStream,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -33,8 +41,7 @@ pub struct CircuitAppSaveData {
     paused: bool,
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 struct CircuitFile {
     diagram: Diagram,
     cfg: SolverConfig,
@@ -57,12 +64,19 @@ impl Default for CircuitAppSaveData {
 
 impl CircuitApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let save: CircuitAppSaveData = cc.storage.and_then(|storage| eframe::get_value(storage, eframe::APP_KEY)).unwrap_or_default();
+        let save: CircuitAppSaveData = cc
+            .storage
+            .and_then(|storage| eframe::get_value(storage, eframe::APP_KEY))
+            .unwrap_or_default();
 
         let (cmd_tx, cmd_rx) = channel();
         let (data_tx, data_rx) = channel();
-        let mut src = InteractiveCircuitSource::new(cmd_rx, data_tx, save.current_file.clone());
+        let src = InteractiveCircuitSource::new(cmd_rx, data_tx, save.current_file.clone());
 
+        let (stream, stream_handle) = OutputStream::try_default().unwrap();
+        stream_handle.play_raw(src.amplify(1e-0)).unwrap();
+
+        /*
         std::thread::spawn(move || {
             let mut n = 0;
             let s = std::time::Instant::now();
@@ -75,8 +89,10 @@ impl CircuitApp {
                 //std::thread::sleep_ms(1000 / 60);
             }
         });
+        */
 
         Self {
+            stream,
             cmd_tx,
             data_rx,
             save,
@@ -141,7 +157,12 @@ impl CircuitApp {
     }
 
     fn update_title(&self, ctx: &egui::Context) {
-        if let Some(path) = self.save.current_path.as_ref().and_then(|file| file.to_str()) {
+        if let Some(path) = self
+            .save
+            .current_path
+            .as_ref()
+            .and_then(|file| file.to_str())
+        {
             ctx.send_viewport_cmd(ViewportCommand::Title(format!("Cirmcut {path}")));
         }
     }
@@ -189,7 +210,10 @@ impl eframe::App for CircuitApp {
                 });
 
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.hyperlink_to("Source code on GitHub", "https://github.com/Masterchef365/cirmcut");
+                    ui.hyperlink_to(
+                        "Source code on GitHub",
+                        "https://github.com/Masterchef365/cirmcut",
+                    );
                 });
             });
         });
@@ -237,8 +261,8 @@ impl eframe::App for CircuitApp {
                 ui.horizontal(|ui| {
                     ui.add(
                         DragValue::new(&mut self.save.current_file.cfg.nr_step_size)
-                        .speed(1e-6)
-                        .prefix("Initial NR step size: "),
+                            .speed(1e-6)
+                            .prefix("Initial NR step size: "),
                     );
                     ui.checkbox(
                         &mut self.save.current_file.cfg.adaptive_step_size,
@@ -277,9 +301,11 @@ impl eframe::App for CircuitApp {
                 ui.separator();
 
                 if let Some(state) = &state {
-                    rebuild_sim |=
-                        self.save.editor
-                            .edit_component(ui, &mut self.save.current_file.diagram, state);
+                    rebuild_sim |= self.save.editor.edit_component(
+                        ui,
+                        &mut self.save.current_file.diagram,
+                        state,
+                    );
                 }
 
                 ui.separator();
@@ -439,12 +465,20 @@ impl eframe::App for CircuitApp {
             self.sim = Some(Solver::new(
                 &self.save.current_file.diagram.to_primitive_diagram(),
             ));
-            self.cmd_tx.send(AudioCommand::Reset(self.save.current_file.clone())).unwrap();
+            self.cmd_tx
+                .send(AudioCommand::Reset(self.save.current_file.clone()))
+                .unwrap();
         } else {
-            self.cmd_tx.send(AudioCommand::UpdateDiagram(self.save.current_file.clone())).unwrap();
+            self.cmd_tx
+                .send(AudioCommand::UpdateDiagram(self.save.current_file.clone()))
+                .unwrap();
         }
-        self.cmd_tx.send(AudioCommand::Select(self.save.editor.selection())).unwrap();
-        self.cmd_tx.send(AudioCommand::Pause(self.save.paused)).unwrap();
+        self.cmd_tx
+            .send(AudioCommand::Select(self.save.editor.selection()))
+            .unwrap();
+        self.cmd_tx
+            .send(AudioCommand::Pause(self.save.paused))
+            .unwrap();
 
         if !self.save.paused || rebuild_sim || single_step {
             ctx.request_repaint();
@@ -505,8 +539,10 @@ fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> Dia
                 })
             })
             .collect(),
-        three_terminal: output.three_terminal_current.iter().zip(&diagram
-            .three_terminal)
+        three_terminal: output
+            .three_terminal_current
+            .iter()
+            .zip(&diagram.three_terminal)
             .map(|(&current, (indices, _))| {
                 [0, 1, 2].map(|offset| DiagramWireState {
                     voltage: output.voltages[indices[offset]],
@@ -547,20 +583,20 @@ struct InteractiveCircuitSource {
     paused: bool,
     select: Option<Selection>,
     frame_timer: Instant,
+    start: Instant,
+    n: usize,
 }
 
 impl InteractiveCircuitSource {
-    fn new(
-    rx: Receiver<AudioCommand>,
-    tx: Sender<AudioReturn>,
-    circuit_file: CircuitFile,
-        ) -> Self {
+    fn new(rx: Receiver<AudioCommand>, tx: Sender<AudioReturn>, circuit_file: CircuitFile) -> Self {
         Self {
             rx,
             tx,
+            n: 0,
             paused: false,
             select: None,
             frame_timer: Instant::now(),
+            start: Instant::now(),
             sim: Solver::new(&circuit_file.diagram.to_primitive_diagram()),
             circuit_file,
         }
@@ -570,6 +606,11 @@ impl InteractiveCircuitSource {
 impl Iterator for InteractiveCircuitSource {
     type Item = f32;
     fn next(&mut self) -> Option<Self::Item> {
+        self.n += 1;
+        if self.n % 1000 == 0 {
+            dbg!(self.n as f32 / self.start.elapsed().as_secs_f32());
+        }
+
         let mut reset = false;
         for cmd in self.rx.try_iter() {
             match cmd {
@@ -589,7 +630,10 @@ impl Iterator for InteractiveCircuitSource {
         }
 
         if !self.paused {
-            if let Err(e) = self.sim.step(self.circuit_file.dt, &primitive, &self.circuit_file.cfg) {
+            if let Err(e) = self
+                .sim
+                .step(self.circuit_file.dt, &primitive, &self.circuit_file.cfg)
+            {
                 eprintln!("{:?}", e);
                 return Some(0.0);
             }
@@ -613,5 +657,23 @@ impl Iterator for InteractiveCircuitSource {
         } else {
             Some(0.)
         }
+    }
+}
+
+impl Source for InteractiveCircuitSource {
+    fn current_frame_len(&self) -> Option<usize> {
+        None
+    }
+
+    fn channels(&self) -> u16 {
+        1
+    }
+
+    fn sample_rate(&self) -> u32 {
+        2_000
+    }
+
+    fn total_duration(&self) -> Option<std::time::Duration> {
+        None
     }
 }
