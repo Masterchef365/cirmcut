@@ -438,6 +438,7 @@ impl eframe::App for CircuitApp {
             self.cmd_tx.send(AudioCommand::UpdateDiagram(self.save.current_file.clone())).unwrap();
         }
         self.cmd_tx.send(AudioCommand::Select(self.save.editor.selection())).unwrap();
+        self.cmd_tx.send(AudioCommand::Pause(self.save.paused)).unwrap();
 
         if !self.save.paused || rebuild_sim || single_step {
             ctx.request_repaint();
@@ -524,6 +525,7 @@ enum AudioCommand {
     Reset(CircuitFile),
     UpdateDiagram(CircuitFile),
     Select(Option<Selection>),
+    Pause(bool),
 }
 
 enum AudioReturn {
@@ -536,6 +538,7 @@ struct InteractiveCircuitSource {
     tx: Sender<AudioReturn>,
     circuit_file: CircuitFile,
     sim: Solver,
+    paused: bool,
     select: Option<Selection>,
     frame_timer: Instant,
 }
@@ -549,6 +552,7 @@ impl InteractiveCircuitSource {
         Self {
             rx,
             tx,
+            paused: false,
             select: None,
             frame_timer: Instant::now(),
             sim: Solver::new(&circuit_file.diagram.to_primitive_diagram()),
@@ -563,6 +567,7 @@ impl Iterator for InteractiveCircuitSource {
         let mut reset = false;
         for cmd in self.rx.try_iter() {
             match cmd {
+                AudioCommand::Pause(p) => self.paused = p,
                 AudioCommand::Reset(f) => {
                     self.circuit_file = f;
                     reset = true;
@@ -577,9 +582,11 @@ impl Iterator for InteractiveCircuitSource {
             self.sim = Solver::new(&primitive);
         }
 
-        if let Err(e) = self.sim.step(self.circuit_file.dt, &primitive, &self.circuit_file.cfg) {
-            eprintln!("{:?}", e);
-            return Some(0.0);
+        if !self.paused {
+            if let Err(e) = self.sim.step(self.circuit_file.dt, &primitive, &self.circuit_file.cfg) {
+                eprintln!("{:?}", e);
+                return Some(0.0);
+            }
         }
 
         let state = solver_to_diagramstate(self.sim.state(&primitive), &primitive);
@@ -587,6 +594,10 @@ impl Iterator for InteractiveCircuitSource {
         if self.frame_timer.elapsed().as_millis() > 1000 / 24 {
             self.frame_timer = Instant::now();
             self.tx.send(AudioReturn::State(state.clone())).unwrap();
+        }
+
+        if self.paused {
+            return Some(0.0);
         }
 
         if let Some((idx, false)) = self.select {
