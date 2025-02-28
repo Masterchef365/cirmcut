@@ -14,22 +14,20 @@ use crate::circuit_widget::{
     VisualizationOptions,
 };
 
-#[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
+    sim: Option<Solver>,
+    error: Option<String>,
+    save: CircuitAppSaveData,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct CircuitAppSaveData {
     view_rect: Rect,
     editor: DiagramEditor,
     debug_draw: bool,
     current_path: Option<PathBuf>,
-
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
-
-    #[serde(skip)]
-    sim: Option<Solver>,
-
-    #[serde(skip)]
-    error: Option<String>,
-
     paused: bool,
 }
 
@@ -40,12 +38,10 @@ struct CircuitFile {
     dt: f64,
 }
 
-impl Default for CircuitApp {
+impl Default for CircuitAppSaveData {
     fn default() -> Self {
         Self {
             vis_opt: VisualizationOptions::default(),
-            error: None,
-            sim: None,
             editor: DiagramEditor::new(),
             current_file: ron::from_str(include_str!("colpitts2.ckt")).unwrap_or_default(),
             paused: false,
@@ -58,19 +54,18 @@ impl Default for CircuitApp {
 
 impl CircuitApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
+        let save = cc.storage.and_then(|storage| eframe::get_value(storage, eframe::APP_KEY)).unwrap_or_default();
+
+        Self {
+            save,
+            error: None,
+            sim: None,
         }
-
-        let inst = Self::default();
-        inst.update_title(&cc.egui_ctx);
-
-        inst
     }
 
     fn state(&self) -> Option<DiagramState> {
         self.sim.as_ref().map(|sim| {
-            let diag = self.current_file.diagram.to_primitive_diagram();
+            let diag = self.save.current_file.diagram.to_primitive_diagram();
             solver_to_diagramstate(sim.state(&diag), &diag)
         })
     }
@@ -78,7 +73,7 @@ impl CircuitApp {
     fn save_file(&mut self, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let maybe_path = match &self.current_path {
+            let maybe_path = match &self.save.current_path {
                 Some(current) => Some(current.clone()),
                 None => rfd::FileDialog::new()
                     .add_filter("CKT", &["ckt"])
@@ -90,19 +85,19 @@ impl CircuitApp {
                     path.set_extension("ckt");
                 }
 
-                write_file(&self.current_file, &path);
+                write_file(&self.save.current_file, &path);
             }
 
-            self.update_title(ctx);
+            //self.save.update_title(ctx);
         }
     }
 
     fn open_file(&mut self, ctx: &egui::Context) {
-        //self.save_file(ctx);
+        //self.save.save_file(ctx);
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let maybe_path = match &self.current_path {
+            let maybe_path = match &self.save.current_path {
                 Some(current) => Some(current.clone()),
                 None => rfd::FileDialog::new()
                     .add_filter("CKT", &["ckt"])
@@ -111,7 +106,7 @@ impl CircuitApp {
 
             if let Some(path) = maybe_path {
                 if let Some(data) = read_file(&path) {
-                    self.current_file = data;
+                    self.save.current_file = data;
                     self.sim = None;
                 }
             }
@@ -121,7 +116,7 @@ impl CircuitApp {
     }
 
     fn update_title(&self, ctx: &egui::Context) {
-        if let Some(path) = self.current_path.as_ref().and_then(|file| file.to_str()) {
+        if let Some(path) = self.save.current_path.as_ref().and_then(|file| file.to_str()) {
             ctx.send_viewport_cmd(ViewportCommand::Title(format!("Cirmcut {path}")));
         }
     }
@@ -129,7 +124,7 @@ impl CircuitApp {
 
 impl eframe::App for CircuitApp {
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
+        eframe::set_value(storage, eframe::APP_KEY, &self.save);
     }
 
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
@@ -139,7 +134,7 @@ impl eframe::App for CircuitApp {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("New").clicked() {
-                        self.current_file = CircuitFile::default();
+                        self.save.current_file = CircuitFile::default();
                         self.sim = None;
                     }
                     ui.separator();
@@ -155,7 +150,7 @@ impl eframe::App for CircuitApp {
                     }
 
                     if ui.button("Load Example circuit").clicked() {
-                        self.current_file = Self::default().current_file;
+                        self.save.current_file = CircuitAppSaveData::default().current_file;
                         self.sim = None;
                     }
                     egui::widgets::global_theme_preference_buttons(ui);
@@ -177,12 +172,12 @@ impl eframe::App for CircuitApp {
         egui::SidePanel::left("cfg").show(ctx, |ui| {
             ScrollArea::vertical().show(ui, |ui| {
                 ui.strong("Simulation");
-                let text = if self.paused { "Run" } else { "Pause" };
+                let text = if self.save.paused { "Run" } else { "Pause" };
                 ui.horizontal(|ui| {
                     if ui.button(text).clicked() {
-                        self.paused ^= true;
+                        self.save.paused ^= true;
                     }
-                    if self.paused {
+                    if self.save.paused {
                         single_step |= ui.button("Single-step").clicked();
                     }
                 });
@@ -190,7 +185,7 @@ impl eframe::App for CircuitApp {
                 rebuild_sim |= ui.button("Reset").clicked();
 
                 ui.add(
-                    DragValue::new(&mut self.current_file.dt)
+                    DragValue::new(&mut self.save.current_file.dt)
                         .prefix("dt: ")
                         .speed(1e-7)
                         .suffix(" s"),
@@ -204,78 +199,78 @@ impl eframe::App for CircuitApp {
                 ui.strong("Advanced");
 
                 ui.add(
-                    DragValue::new(&mut self.current_file.cfg.max_nr_iters)
+                    DragValue::new(&mut self.save.current_file.cfg.max_nr_iters)
                         .prefix("Max NR iters: "),
                 );
                 ui.horizontal(|ui| {
                     ui.add(
-                        DragValue::new(&mut self.current_file.cfg.nr_step_size)
+                        DragValue::new(&mut self.save.current_file.cfg.nr_step_size)
                         .speed(1e-6)
                         .prefix("Initial NR step size: "),
                     );
                     ui.checkbox(
-                        &mut self.current_file.cfg.adaptive_step_size,
+                        &mut self.save.current_file.cfg.adaptive_step_size,
                         "Adaptive",
                     );
                 });
 
                 ui.add(
-                    DragValue::new(&mut self.current_file.cfg.nr_tolerance)
+                    DragValue::new(&mut self.save.current_file.cfg.nr_tolerance)
                         .speed(1e-6)
                         .prefix("NR tolerance: "),
                 );
                 ui.add(
-                    DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
+                    DragValue::new(&mut self.save.current_file.cfg.dx_soln_tolerance)
                         .speed(1e-6)
                         .prefix("Matrix solve tol: "),
                 );
 
                 ui.horizontal(|ui| {
                     ui.selectable_value(
-                        &mut self.current_file.cfg.mode,
+                        &mut self.save.current_file.cfg.mode,
                         SolverMode::NewtonRaphson,
                         "Newton-Raphson",
                     );
                     ui.selectable_value(
-                        &mut self.current_file.cfg.mode,
+                        &mut self.save.current_file.cfg.mode,
                         SolverMode::Linear,
                         "Linear",
                     );
                 });
 
                 if ui.button("Default cfg").clicked() {
-                    self.current_file.cfg = Default::default();
+                    self.save.current_file.cfg = Default::default();
                 }
 
                 ui.separator();
 
                 if let Some(state) = &state {
                     rebuild_sim |=
-                        self.editor
-                            .edit_component(ui, &mut self.current_file.diagram, state);
+                        self.save.editor
+                            .edit_component(ui, &mut self.save.current_file.diagram, state);
                 }
 
                 ui.separator();
                 ui.strong("Visualization");
                 ui.add(
-                    DragValue::new(&mut self.vis_opt.voltage_scale)
+                    DragValue::new(&mut self.save.vis_opt.voltage_scale)
                         .prefix("Voltage scale: ")
                         .speed(1e-2),
                 );
                 ui.add(
-                    DragValue::new(&mut self.vis_opt.current_scale)
+                    DragValue::new(&mut self.save.vis_opt.current_scale)
                         .prefix("Current scale: ")
                         .speed(1e-2),
                 );
                 if ui.button("Auto scale").clicked() {
                     if let Some(state) = &state {
                         let all_wires = state.two_terminal.iter().copied().flatten();
-                        self.vis_opt.voltage_scale = all_wires
+                        self.save.vis_opt.voltage_scale = all_wires
                             .clone()
                             .map(|wire| wire.voltage.abs())
                             .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().voltage_scale);
-                        self.vis_opt.current_scale = all_wires
+                        self.save.vis_opt.current_scale = all_wires
                             .map(|wire| wire.current.abs())
                             .max_by(|a, b| a.partial_cmp(&b).unwrap_or(std::cmp::Ordering::Equal))
                             .unwrap_or(VisualizationOptions::default().current_scale);
@@ -289,90 +284,90 @@ impl eframe::App for CircuitApp {
             ScrollArea::horizontal().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Add component: ");
-                    let pos = egui_to_cellpos(self.view_rect.center());
+                    let pos = egui_to_cellpos(self.save.view_rect.center());
                     if ui.button("Wire").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Wire,
                         );
                     }
                     if ui.button("Resistor").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Resistor(1000.0),
                         );
                     }
                     if ui.button("Inductor").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Inductor(1.0, None),
                         );
                     }
                     if ui.button("Capacitor").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Capacitor(10e-6),
                         );
                     }
                     if ui.button("Diode").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Diode,
                         );
                     }
                     if ui.button("Battery").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Battery(5.0),
                         );
                     }
                     if ui.button("Switch").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::Switch(true),
                         );
                     }
                     if ui.button("Current source").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_twoterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             TwoTerminalComponent::CurrentSource(0.1),
                         );
                     }
                     if ui.button("PNP").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_threeterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_threeterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             ThreeTerminalComponent::PTransistor(100.0),
                         );
                     }
                     if ui.button("NPN").clicked() {
                         rebuild_sim = true;
-                        self.editor.new_threeterminal(
-                            &mut self.current_file.diagram,
+                        self.save.editor.new_threeterminal(
+                            &mut self.save.current_file.diagram,
                             pos,
                             ThreeTerminalComponent::NTransistor(100.0),
                         );
                     }
                     /*
                     if ui.button("Delete").clicked() {
-                        self.editor.delete();
+                        self.save.editor.delete();
                     }
                     ui.checkbox(&mut self.debug_draw, "Debug draw");
                     */
@@ -382,27 +377,27 @@ impl eframe::App for CircuitApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let rect = self.view_rect;
-                let resp = egui::Scene::new().show(ui, &mut self.view_rect, |ui| {
+                let rect = self.save.view_rect;
+                let resp = egui::Scene::new().show(ui, &mut self.save.view_rect, |ui| {
                     draw_grid(ui, rect, 1.0, Color32::DARK_GRAY);
                     if let Some(state) = state {
-                        rebuild_sim |= self.editor.edit(
+                        rebuild_sim |= self.save.editor.edit(
                             ui,
-                            &mut self.current_file.diagram,
+                            &mut self.save.current_file.diagram,
                             &state,
-                            self.debug_draw,
-                            &self.vis_opt,
+                            self.save.debug_draw,
+                            &self.save.vis_opt,
                         );
                     }
                 });
 
                 if ui.input(|r| r.key_pressed(Key::Delete)) {
                     rebuild_sim = true;
-                    self.editor.delete(&mut self.current_file.diagram);
+                    self.save.editor.delete(&mut self.save.current_file.diagram);
                 }
 
                 if resp.response.clicked() || ui.input(|r| r.key_pressed(Key::Escape)) {
-                    self.editor.reset_selection();
+                    self.save.editor.reset_selection();
                 }
             });
         });
@@ -410,23 +405,23 @@ impl eframe::App for CircuitApp {
         // Reset
         if rebuild_sim {
             self.sim = Some(Solver::new(
-                &self.current_file.diagram.to_primitive_diagram(),
+                &self.save.current_file.diagram.to_primitive_diagram(),
             ));
         }
 
-        if !self.paused || rebuild_sim || single_step {
+        if !self.save.paused || rebuild_sim || single_step {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
                 //let start = std::time::Instant::now();
                 if let Err(e) = sim.step(
-                    self.current_file.dt,
-                    &self.current_file.diagram.to_primitive_diagram(),
-                    &self.current_file.cfg,
+                    self.save.current_file.dt,
+                    &self.save.current_file.diagram.to_primitive_diagram(),
+                    &self.save.current_file.cfg,
                 ) {
                     eprintln!("{}", e);
                     self.error = Some(e);
-                    self.paused = true;
+                    self.save.paused = true;
                 } else {
                     self.error = None;
                 }
@@ -494,3 +489,79 @@ impl Default for CircuitFile {
         }
     }
 }
+/*
+ *
+
+enum AudioCommand {
+    Reset(CircuitFile),
+    UpdateDiagram(CircuitFile),
+    Select(Option<Selection>),
+}
+
+enum AudioReturn {
+    State(DiagramState),
+    Error(String),
+}
+
+struct InteractiveCircuitSource {
+    rx: Receiver<AudioCommand>,
+    tx: Sender<AudioReturn>,
+    circuit_file: CircuitFile,
+    sim: Solver,
+    select: Option<Selection>,
+    frame_timer: Instant,
+}
+
+impl InteractiveCircuitSource {
+    fn new(
+    rx: Receiver<AudioCommand>,
+    tx: Sender<AudioReturn>,
+    circuit_file: CircuitFile,
+        ) -> Self {
+        todo!()
+
+    }
+}
+
+impl Iterator for InteractiveCircuitSource {
+    type Item = f32;
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut reset = false;
+        for cmd in self.rx.try_iter() {
+            match cmd {
+                AudioCommand::Reset(f) => {
+                    self.circuit_file = f;
+                    reset = true;
+                }
+                AudioCommand::UpdateDiagram(f) => self.circuit_file = f,
+                AudioCommand::Select(selection) => self.select = selection,
+            }
+        }
+
+        let primitive = self.circuit_file.diagram.to_primitive_diagram();
+        if reset {
+            self.sim = Solver::new(&primitive);
+        }
+
+        if let Err(e) = self.sim.step(self.circuit_file.dt, &primitive, &self.circuit_file.cfg) {
+            eprintln!("{:?}", e);
+            return Some(0.0);
+        }
+
+        let state = solver_to_diagramstate(self.sim.state(&primitive), &primitive);
+
+        if self.frame_timer.elapsed().as_millis() > 1000 / 24 {
+            self.frame_timer = Instant::now();
+            self.tx.send(AudioReturn::State(state.clone())).unwrap();
+        }
+
+        if let Some((idx, false)) = self.select {
+            let [wire_a, wire_b] = state.two_terminal[idx];
+            let dv = wire_b.voltage - wire_a.voltage;
+            Some(dv as f32)
+        } else {
+            Some(0.)
+        }
+    }
+}
+*/
