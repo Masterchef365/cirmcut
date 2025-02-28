@@ -207,11 +207,18 @@ impl eframe::App for CircuitApp {
                     DragValue::new(&mut self.current_file.cfg.max_nr_iters)
                         .prefix("Max NR iters: "),
                 );
-                ui.add(
-                    DragValue::new(&mut self.current_file.cfg.nr_step_size)
+                ui.horizontal(|ui| {
+                    ui.add(
+                        DragValue::new(&mut self.current_file.cfg.nr_step_size)
                         .speed(1e-6)
-                        .prefix("NR step size: "),
-                );
+                        .prefix("Initial NR step size: "),
+                    );
+                    ui.checkbox(
+                        &mut self.current_file.cfg.adaptive_step_size,
+                        "Adaptive",
+                    );
+                });
+
                 ui.add(
                     DragValue::new(&mut self.current_file.cfg.nr_tolerance)
                         .speed(1e-6)

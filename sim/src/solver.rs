@@ -27,6 +27,8 @@ pub struct SolverConfig {
     /// When solving F Delta x = -f, which tolerance do we solve the system to?
     pub dx_soln_tolerance: f64,
     pub mode: SolverMode,
+    #[serde(default)]
+    pub adaptive_step_size: bool,
 }
 
 impl Solver {
@@ -65,6 +67,8 @@ impl Solver {
 
         let mut new_state = [prev_time_step_soln.clone()];
 
+        let mut step_size: f64 = cfg.nr_step_size;
+
         let mut last_err = 9e99;
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
@@ -97,15 +101,19 @@ impl Solver {
             lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
 
             // dw dot dw
-            let err = delta.iter().map(|f| f*f).sum::<f64>();
+            let err = delta.iter().map(|f| (f * step_size).powi(2)).sum::<f64>();
 
-            if err > last_err {
+            if err > last_err && cfg.adaptive_step_size {
+                last_err = err;
+                //dbg!(step_size);
+                step_size /= 2.0;
+                continue;
                 //return Err("Error value increased!".to_string());
                 //eprintln!("Error value increased! {}", err - last_err);
             }
 
             // w += dw * step size
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * cfg.nr_step_size);
+            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * step_size);
 
             if err < cfg.nr_tolerance {
                 break;
@@ -116,11 +124,9 @@ impl Solver {
             nr_iters += 1;
         }
 
-        /*
         if nr_iters > 0 {
-            dbg!(nr_iters);
+            //dbg!(nr_iters);
         }
-        */
 
         [self.soln_vector] = new_state;
 
@@ -167,6 +173,7 @@ impl Solver {
 impl Default for SolverConfig {
     fn default() -> Self {
         SolverConfig {
+            adaptive_step_size: true,
             mode: SolverMode::default(),
             dx_soln_tolerance: 1e-3,
             nr_tolerance: 1e-6,
