@@ -74,7 +74,7 @@ impl CircuitApp {
         let src = InteractiveCircuitSource::new(cmd_rx, data_tx, save.current_file.clone());
 
         let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        stream_handle.play_raw(src.amplify(1e-0)).unwrap();
+        stream_handle.play_raw(src.amplify(1e-1)).unwrap();
 
         /*
         std::thread::spawn(move || {
@@ -246,6 +246,13 @@ impl eframe::App for CircuitApp {
                         .speed(1e-7)
                         .suffix(" s"),
                 );
+
+                ui.add(
+                    DragValue::new(&mut self.save.current_file.cfg.n_timesteps)
+                        .prefix("# of timesteps: ")
+                        .speed(1e-1)
+                );
+
 
                 if let Some(error) = &self.error {
                     ui.label(RichText::new(error).color(Color32::RED));
@@ -641,7 +648,7 @@ impl Iterator for InteractiveCircuitSource {
 
         let state = solver_to_diagramstate(self.sim.state(&primitive), &primitive);
 
-        if self.frame_timer.elapsed().as_millis() > 1000 / 24 {
+        if self.frame_timer.elapsed().as_millis() > 1000 / 10 {
             self.frame_timer = Instant::now();
             self.tx.send(AudioReturn::State(state.clone())).unwrap();
         }
@@ -670,7 +677,7 @@ impl Source for InteractiveCircuitSource {
     }
 
     fn sample_rate(&self) -> u32 {
-        2_000
+        8_000
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {

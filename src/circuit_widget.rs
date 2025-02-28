@@ -315,11 +315,13 @@ impl DiagramEditor {
                 }
             } else {
                 if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
-                    edit_twoterminal_component(ui, component, state.two_terminal[idx]);
+                    if let Some(state) = state.two_terminal.get(idx) {
+                    edit_twoterminal_component(ui, component, *state);
 
                     if ui.button("Flip").clicked() {
                         terminals.swap(0, 1);
                         return true;
+                    }
                     }
                 } else {
                     eprintln!("Warning: Couldn't find {idx} in diagram");
