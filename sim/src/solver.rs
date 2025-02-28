@@ -176,9 +176,9 @@ impl Default for SolverConfig {
             adaptive_step_size: true,
             mode: SolverMode::default(),
             dx_soln_tolerance: 1e-3,
-            nr_tolerance: 1e-6,
+            nr_tolerance: 1e-3,
             nr_step_size: 1e-1,
-            max_nr_iters: 2000,
+            max_nr_iters: 20,
         }
     }
 }
