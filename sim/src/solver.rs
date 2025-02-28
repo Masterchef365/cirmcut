@@ -29,6 +29,7 @@ pub struct SolverConfig {
     pub mode: SolverMode,
     #[serde(default)]
     pub adaptive_step_size: bool,
+    pub n_timesteps: usize,
 }
 
 impl Solver {
@@ -43,10 +44,14 @@ impl Solver {
 
     /// Note: Assumes diagram is compatible what a sufficiently large battery (or a battery with very low internal resisith the one this solver was created with!
     pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
-        match cfg.mode {
-            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg),
-            SolverMode::Linear => self.linear_step(dt, diagram, cfg),
+        for _ in 0..cfg.n_timesteps {
+            match cfg.mode {
+                SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg)?,
+                SolverMode::Linear => self.linear_step(dt, diagram, cfg)?,
+            }
         }
+
+        Ok(())
     }
 
     fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
@@ -173,6 +178,7 @@ impl Solver {
 impl Default for SolverConfig {
     fn default() -> Self {
         SolverConfig {
+            n_timesteps: 1,
             adaptive_step_size: true,
             mode: SolverMode::default(),
             dx_soln_tolerance: 1e-3,
