@@ -658,9 +658,12 @@ impl Iterator for InteractiveCircuitSource {
         }
 
         if let Some((idx, false)) = self.select {
-            let [wire_a, wire_b] = state.two_terminal[idx];
-            let dv = wire_b.voltage - wire_a.voltage;
-            Some(dv as f32)
+            if let Some([wire_a, wire_b]) = state.two_terminal.get(idx) {
+                let dv = wire_b.voltage - wire_a.voltage;
+                Some(dv as f32)
+            } else {
+                Some(0.)
+            }
         } else {
             Some(0.)
         }
