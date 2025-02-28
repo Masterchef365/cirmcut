@@ -1,7 +1,7 @@
 use std::{
     ffi::OsStr,
     fs::File,
-    path::{Path, PathBuf},
+    path::{Path, PathBuf}, sync::mpsc::{channel, Receiver, Sender}, time::Instant,
 };
 
 use cirmcut_sim::{
@@ -10,14 +10,16 @@ use cirmcut_sim::{
 use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
 
 use crate::circuit_widget::{
-    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
-    VisualizationOptions,
+    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState, Selection, VisualizationOptions
 };
 
 pub struct CircuitApp {
     sim: Option<Solver>,
     error: Option<String>,
     save: CircuitAppSaveData,
+    state: Option<DiagramState>,
+    cmd_tx: Sender<AudioCommand>,
+    data_rx: Receiver<AudioReturn>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -32,6 +34,7 @@ pub struct CircuitAppSaveData {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Clone)]
 struct CircuitFile {
     diagram: Diagram,
     cfg: SolverConfig,
@@ -54,21 +57,37 @@ impl Default for CircuitAppSaveData {
 
 impl CircuitApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        let save = cc.storage.and_then(|storage| eframe::get_value(storage, eframe::APP_KEY)).unwrap_or_default();
+        let save: CircuitAppSaveData = cc.storage.and_then(|storage| eframe::get_value(storage, eframe::APP_KEY)).unwrap_or_default();
+
+        let (cmd_tx, cmd_rx) = channel();
+        let (data_tx, data_rx) = channel();
+        let mut src = InteractiveCircuitSource::new(cmd_rx, data_tx, save.current_file.clone());
+
+        std::thread::spawn(move || {
+            loop {
+                dbg!(src.next());
+                std::thread::sleep_ms(1000 / 60);
+            }
+        });
 
         Self {
+            cmd_tx,
+            data_rx,
             save,
             error: None,
             sim: None,
+            state: None,
         }
     }
 
+    /*
     fn state(&self) -> Option<DiagramState> {
-        self.sim.as_ref().map(|sim| {
+        /*self.sim.as_ref().map(|sim| {
             let diag = self.save.current_file.diagram.to_primitive_diagram();
             solver_to_diagramstate(sim.state(&diag), &diag)
-        })
+        })*/
     }
+    */
 
     fn save_file(&mut self, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
@@ -130,6 +149,13 @@ impl eframe::App for CircuitApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         ctx.request_repaint();
 
+        for msg in self.data_rx.try_recv() {
+            match msg {
+                AudioReturn::State(state) => self.state = Some(state),
+                AudioReturn::Error(e) => self.error = Some(e),
+            }
+        }
+
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
@@ -165,7 +191,7 @@ impl eframe::App for CircuitApp {
         let mut rebuild_sim = self.sim.is_none();
 
         // TODO: Cache this?
-        let state = self.state();
+        let state = &self.state;
 
         let mut single_step = false;
 
@@ -407,7 +433,11 @@ impl eframe::App for CircuitApp {
             self.sim = Some(Solver::new(
                 &self.save.current_file.diagram.to_primitive_diagram(),
             ));
+            self.cmd_tx.send(AudioCommand::Reset(self.save.current_file.clone())).unwrap();
+        } else {
+            self.cmd_tx.send(AudioCommand::UpdateDiagram(self.save.current_file.clone())).unwrap();
         }
+        self.cmd_tx.send(AudioCommand::Select(self.save.editor.selection())).unwrap();
 
         if !self.save.paused || rebuild_sim || single_step {
             ctx.request_repaint();
@@ -489,8 +519,6 @@ impl Default for CircuitFile {
         }
     }
 }
-/*
- *
 
 enum AudioCommand {
     Reset(CircuitFile),
@@ -518,8 +546,14 @@ impl InteractiveCircuitSource {
     tx: Sender<AudioReturn>,
     circuit_file: CircuitFile,
         ) -> Self {
-        todo!()
-
+        Self {
+            rx,
+            tx,
+            select: None,
+            frame_timer: Instant::now(),
+            sim: Solver::new(&circuit_file.diagram.to_primitive_diagram()),
+            circuit_file,
+        }
     }
 }
 
@@ -564,4 +598,3 @@ impl Iterator for InteractiveCircuitSource {
         }
     }
 }
-*/
