@@ -178,7 +178,7 @@ impl Solver {
 impl Default for SolverConfig {
     fn default() -> Self {
         SolverConfig {
-            n_timesteps: 1,
+            n_timesteps: 6,
             adaptive_step_size: true,
             mode: SolverMode::default(),
             dx_soln_tolerance: 1e-3,

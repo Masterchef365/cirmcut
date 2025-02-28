@@ -176,6 +176,22 @@ impl eframe::App for CircuitApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         ctx.request_repaint();
 
+        let mut key_index = 0;
+        for (_, component) in &mut self.save.current_file.diagram.two_terminal {
+            if let TwoTerminalComponent::Switch(is_open) = component {
+                let key = match key_index {
+                    0 => Key::Num0,
+                    1 => Key::Num1,
+                    2 => Key::Num2,
+                    3 => Key::Num3,
+                    4 => Key::Num4,
+                    _ => continue,
+                };
+                *is_open = ctx.input(|r| r.key_down(key));
+                key_index += 1;
+            }
+        }
+
         for msg in self.data_rx.try_recv() {
             match msg {
                 AudioReturn::State(state) => self.state = Some(state),
