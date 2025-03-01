@@ -46,6 +46,7 @@ struct CircuitFile {
     diagram: Diagram,
     cfg: SolverConfig,
     dt: f64,
+    sample_rate: u32,
 }
 
 impl Default for CircuitAppSaveData {
@@ -262,6 +263,14 @@ impl eframe::App for CircuitApp {
                         .speed(1e-7)
                         .suffix(" s"),
                 );
+
+                if ui.add(
+                    DragValue::new(&mut self.save.current_file.sample_rate)
+                        .prefix("Sample rate: ")
+                        .suffix(" Hz"),
+                ).changed() {
+                    self.cmd_tx.send(AudioCommand::SampleRate(self.save.current_file.sample_rate)).unwrap();
+                }
 
                 ui.add(
                     DragValue::new(&mut self.save.current_file.cfg.n_timesteps)
@@ -582,6 +591,7 @@ impl Default for CircuitFile {
             diagram: Diagram::default(),
             dt: 5e-3,
             cfg: Default::default(),
+            sample_rate: 8_000,
         }
     }
 }
@@ -591,6 +601,7 @@ enum AudioCommand {
     UpdateDiagram(CircuitFile),
     Select(Option<Selection>),
     Pause(bool),
+    SampleRate(u32),
 }
 
 enum AudioReturn {
@@ -630,8 +641,10 @@ impl Iterator for InteractiveCircuitSource {
     type Item = f32;
     fn next(&mut self) -> Option<Self::Item> {
         self.n += 1;
-        if self.n % 1000 == 0 {
+        if self.n % 10_000 == 0 {
             dbg!(self.n as f32 / self.start.elapsed().as_secs_f32());
+            self.n = 0;
+            self.start = Instant::now();
         }
 
         let mut reset = false;
@@ -644,6 +657,7 @@ impl Iterator for InteractiveCircuitSource {
                 }
                 AudioCommand::UpdateDiagram(f) => self.circuit_file = f,
                 AudioCommand::Select(selection) => self.select = selection,
+                AudioCommand::SampleRate(rate) => self.circuit_file.sample_rate = rate,
             }
         }
 
@@ -664,7 +678,7 @@ impl Iterator for InteractiveCircuitSource {
 
         let state = solver_to_diagramstate(self.sim.state(&primitive), &primitive);
 
-        if self.frame_timer.elapsed().as_millis() > 1000 / 10 {
+        if self.frame_timer.elapsed().as_millis() > 1000 / 24 {
             self.frame_timer = Instant::now();
             self.tx.send(AudioReturn::State(state.clone())).unwrap();
         }
@@ -688,7 +702,7 @@ impl Iterator for InteractiveCircuitSource {
 
 impl Source for InteractiveCircuitSource {
     fn current_frame_len(&self) -> Option<usize> {
-        None
+        Some(10_000)
     }
 
     fn channels(&self) -> u16 {
@@ -696,7 +710,7 @@ impl Source for InteractiveCircuitSource {
     }
 
     fn sample_rate(&self) -> u32 {
-        8_000
+        self.circuit_file.sample_rate
     }
 
     fn total_duration(&self) -> Option<std::time::Duration> {
