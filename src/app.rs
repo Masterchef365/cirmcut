@@ -39,6 +39,7 @@ pub struct CircuitAppSaveData {
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
     paused: bool,
+    set_dt_from_samplerate: bool,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -52,6 +53,7 @@ struct CircuitFile {
 impl Default for CircuitAppSaveData {
     fn default() -> Self {
         Self {
+            set_dt_from_samplerate: true,
             vis_opt: VisualizationOptions::default(),
             editor: DiagramEditor::new(),
             current_file: ron::from_str(include_str!("colpitts2.ckt")).unwrap_or_default(),
@@ -257,12 +259,18 @@ impl eframe::App for CircuitApp {
 
                 rebuild_sim |= ui.button("Reset").clicked();
 
+                ui.horizontal(|ui| { 
                 ui.add(
                     DragValue::new(&mut self.save.current_file.dt)
                         .prefix("dt: ")
                         .speed(1e-7)
                         .suffix(" s"),
                 );
+                ui.checkbox(&mut self.save.set_dt_from_samplerate, "From samplerate");
+                if self.save.set_dt_from_samplerate {
+                    self.save.current_file.dt = 1.0 / self.save.current_file.sample_rate as f64;
+                }
+                });
 
                 if ui.add(
                     DragValue::new(&mut self.save.current_file.sample_rate)
