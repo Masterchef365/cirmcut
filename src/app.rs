@@ -192,7 +192,7 @@ impl eframe::App for CircuitApp {
             }
         }
 
-        for msg in self.data_rx.try_recv() {
+        for msg in self.data_rx.try_iter() {
             match msg {
                 AudioReturn::State(state) => self.state = Some(state),
                 AudioReturn::Error(e) => self.error = Some(e),
