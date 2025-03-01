@@ -21,7 +21,6 @@ use crate::circuit_widget::{
 };
 
 pub struct CircuitApp {
-    sim: Option<Solver>,
     error: Option<String>,
     save: CircuitAppSaveData,
     state: Option<DiagramState>,
@@ -100,7 +99,6 @@ impl CircuitApp {
             data_rx,
             save,
             error: None,
-            sim: None,
             state: None,
         }
     }
@@ -151,7 +149,6 @@ impl CircuitApp {
             if let Some(path) = maybe_path {
                 if let Some(data) = read_file(&path) {
                     self.save.current_file = data;
-                    self.sim = None;
                 }
             }
 
@@ -207,7 +204,6 @@ impl eframe::App for CircuitApp {
                 ui.menu_button("File", |ui| {
                     if ui.button("New").clicked() {
                         self.save.current_file = CircuitFile::default();
-                        self.sim = None;
                     }
                     ui.separator();
                     #[cfg(not(target_arch = "wasm32"))]
@@ -223,7 +219,6 @@ impl eframe::App for CircuitApp {
 
                     if ui.button("Load Example circuit").clicked() {
                         self.save.current_file = CircuitAppSaveData::default().current_file;
-                        self.sim = None;
                     }
                     egui::widgets::global_theme_preference_buttons(ui);
                 });
@@ -237,7 +232,7 @@ impl eframe::App for CircuitApp {
             });
         });
 
-        let mut rebuild_sim = self.sim.is_none();
+        let mut rebuild_sim = false;
 
         // TODO: Cache this?
         let state = &self.state;
@@ -502,9 +497,6 @@ impl eframe::App for CircuitApp {
 
         // Reset
         if rebuild_sim {
-            self.sim = Some(Solver::new(
-                &self.save.current_file.diagram.to_primitive_diagram(),
-            ));
             self.cmd_tx
                 .send(AudioCommand::Reset(self.save.current_file.clone()))
                 .unwrap();
@@ -519,26 +511,6 @@ impl eframe::App for CircuitApp {
         self.cmd_tx
             .send(AudioCommand::Pause(self.save.paused))
             .unwrap();
-
-        if !self.save.paused || rebuild_sim || single_step {
-            ctx.request_repaint();
-
-            if let Some(sim) = &mut self.sim {
-                //let start = std::time::Instant::now();
-                if let Err(e) = sim.step(
-                    self.save.current_file.dt,
-                    &self.save.current_file.diagram.to_primitive_diagram(),
-                    &self.save.current_file.cfg,
-                ) {
-                    eprintln!("{}", e);
-                    self.error = Some(e);
-                    self.save.paused = true;
-                } else {
-                    self.error = None;
-                }
-                //println!("Time: {:.03} ms = {:.03} fps", start.elapsed().as_secs_f32() * 1000.0, 1.0 / (start.elapsed().as_secs_f32()));
-            }
-        }
     }
 }
 
