@@ -207,13 +207,19 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 params[law_idx] = last_timestep[voltage_drop_idx] * capacitance;
             }
             TwoTerminalComponent::Inductor(inductance, core_id) => {
-                matrix.append(law_idx, voltage_drop_idx, dt);
                 matrix.append(law_idx, current_idx, -inductance);
                 params[law_idx] = -last_timestep[current_idx] * inductance;
+                let mut coeff = dt;
                 if let Some(others) = core_id.and_then(|id| cores.get(&id)) {
                     for (value, twoterm_idx) in others {
+                        if *twoterm_idx != total_idx {
+                            coeff += inductance.sqrt();
+                            let other_voltage_idx = map.state_map.voltage_drops().nth(*twoterm_idx).unwrap();
+                            matrix.append(law_idx, other_voltage_idx, -value.sqrt());
+                        }
                     }
                 }
+                matrix.append(law_idx, voltage_drop_idx, coeff);
             }
             TwoTerminalComponent::Diode => {
                 let (coeff, param) = diode_eq(last_iteration[voltage_drop_idx]);
