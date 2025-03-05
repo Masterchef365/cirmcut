@@ -311,7 +311,7 @@ impl eframe::App for CircuitApp {
                         self.editor.new_twoterminal(
                             &mut self.current_file.diagram,
                             pos,
-                            TwoTerminalComponent::Inductor(1.0),
+                            TwoTerminalComponent::Inductor(1.0, None),
                         );
                     }
                     if ui.button("Capacitor").clicked() {

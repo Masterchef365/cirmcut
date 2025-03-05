@@ -348,7 +348,13 @@ fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
     match component {
         TwoTerminalComponent::Battery(v) => Some(to_metric_prefix(v, 'V')),
         TwoTerminalComponent::Capacitor(c) => Some(to_metric_prefix(c, 'F')),
-        TwoTerminalComponent::Inductor(i) => Some(to_metric_prefix(i, 'H')),
+        TwoTerminalComponent::Inductor(i, maybe_core_id) => {
+            let mut prefix = to_metric_prefix(i, 'H');
+            if let Some(id) = maybe_core_id {
+                prefix.push_str(&format!(" (core {id})"));
+            }
+            Some(prefix)
+        },
         TwoTerminalComponent::Resistor(r) => Some(to_metric_prefix(r, 'Ω')),
         _ => None,
     }

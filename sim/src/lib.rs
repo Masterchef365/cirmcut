@@ -9,7 +9,6 @@ pub type CellPos = (i32, i32);
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct PrimitiveDiagram {
     pub num_nodes: usize,
-    pub transformer_cores: usize,
     pub two_terminal: Vec<([usize; 2], TwoTerminalComponent)>,
     pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
 }

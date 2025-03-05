@@ -765,7 +765,7 @@ fn draw_twoterminal_component(
     match component {
         TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected, vis),
         TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected, vis),
-        TwoTerminalComponent::Inductor(_) => draw_inductor(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Inductor(_,_) => draw_inductor(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected, vis),
@@ -820,7 +820,14 @@ fn edit_twoterminal_component(
     ui.strong(component.name());
     match component {
         TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),
-        TwoTerminalComponent::Inductor(i) => ui.add(DragValue::new(i).suffix(" H").speed(1e-2)),
+        TwoTerminalComponent::Inductor(i, maybe_coreid) => {
+            ui.add(DragValue::new(i).suffix(" H").speed(1e-2));
+            let mut has_core = maybe_coreid.is_some();
+            if ui.checkbox(&mut has_core, "Core ID").changed() {
+                *maybe_coreid = has_core.then(|| 0);
+            }
+            ui.add_enabled(has_core, DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)))
+        },
         TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
         TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω").speed(1e-2)),
         TwoTerminalComponent::Wire => ui.response(),
