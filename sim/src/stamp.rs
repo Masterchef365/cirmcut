@@ -213,9 +213,9 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 if let Some(others) = core_id.and_then(|id| cores.get(&id)) {
                     for (value, twoterm_idx) in others {
                         if *twoterm_idx != total_idx {
-                            coeff += inductance.sqrt();
+                            coeff += -value.sqrt();
                             let other_voltage_idx = map.state_map.voltage_drops().nth(*twoterm_idx).unwrap();
-                            matrix.append(law_idx, other_voltage_idx, -value.sqrt());
+                            matrix.append(law_idx, other_voltage_idx, inductance.sqrt());
                         }
                     }
                 }
