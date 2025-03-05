@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{collections::HashMap, ops::Range};
 
 use rsparse::{data::{Sprs, Trpl}, lusol};
 
@@ -139,6 +139,14 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
         }
     }
 
+    // Maps core ID -> inductance, two terminal component idx
+    let mut cores: HashMap<u16, Vec<(f64, usize)>> = HashMap::new();
+    for (idx, (_, component)) in diagram.two_terminal.iter().enumerate() {
+        if let TwoTerminalComponent::Inductor(value, Some(core_id)) = component {
+            cores.entry(*core_id).or_default().push((*value, idx));
+        }
+    }
+
     // Stamp components
     let mut total_idx = 0;
     for &(node_indices, component) in &diagram.two_terminal {
@@ -198,10 +206,14 @@ pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram,
                 matrix.append(law_idx, voltage_drop_idx, capacitance);
                 params[law_idx] = last_timestep[voltage_drop_idx] * capacitance;
             }
-            TwoTerminalComponent::Inductor(inductance) => {
+            TwoTerminalComponent::Inductor(inductance, core_id) => {
                 matrix.append(law_idx, voltage_drop_idx, dt);
                 matrix.append(law_idx, current_idx, -inductance);
                 params[law_idx] = -last_timestep[current_idx] * inductance;
+                if let Some(others) = core_id.and_then(|id| cores.get(&id)) {
+                    for (value, twoterm_idx) in others {
+                    }
+                }
             }
             TwoTerminalComponent::Diode => {
                 let (coeff, param) = diode_eq(last_iteration[voltage_drop_idx]);

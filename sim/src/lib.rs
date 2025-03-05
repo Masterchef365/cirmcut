@@ -9,6 +9,7 @@ pub type CellPos = (i32, i32);
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct PrimitiveDiagram {
     pub num_nodes: usize,
+    pub transformer_cores: usize,
     pub two_terminal: Vec<([usize; 2], TwoTerminalComponent)>,
     pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
 }
@@ -28,8 +29,8 @@ pub enum TwoTerminalComponent {
     Wire,
     // Resistance
     Resistor(f64),
-    // Inductance
-    Inductor(f64),
+    // Inductance, and hub ID
+    Inductor(f64, Option<u16>),
     // Capacitance
     Capacitor(f64),
     Diode,
@@ -54,7 +55,7 @@ impl TwoTerminalComponent {
             Self::Wire => "Wire",
             Self::Resistor(_) => "Resistor",
             Self::Capacitor(_) => "Capacitor",
-            Self::Inductor(_) => "Inductor",
+            Self::Inductor(_, _) => "Inductor",
             Self::Battery(_) => "Battery",
             Self::Diode => "Diode",
             Self::Switch(_) => "Switch",
