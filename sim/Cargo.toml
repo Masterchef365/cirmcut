@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 rsparse = "1.1.0"
+russell_sparse = "1.10.0"
+russell_lab = "1.10.0"

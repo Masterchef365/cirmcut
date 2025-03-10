@@ -1,6 +1,8 @@
 use std::ops::Range;
 
 use rsparse::{data::{Sprs, Trpl}, lusol};
+use russell_lab::{vec_add, Vector};
+use russell_sparse::{LinSolTrait, SolverUMFPACK};
 
 use crate::{map::PrimitiveDiagramMapping, stamp::stamp, PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
 
@@ -50,6 +52,7 @@ impl Solver {
     }
 
     fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+        /*
         let prev_time_step_soln = &self.soln_vector;
 
         let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
@@ -58,6 +61,7 @@ impl Solver {
         lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
 
         self.soln_vector = new_soln;
+        */
 
         Ok(())
     }
@@ -66,6 +70,8 @@ impl Solver {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
+
+        let mut umfpack = SolverUMFPACK::new().unwrap();
 
         let mut step_size: f64 = cfg.nr_step_size;
 
@@ -79,29 +85,26 @@ impl Solver {
                 return Ok(());
             }
 
-            let mut dense_b = Trpl::new();
-            for (i, val) in params.iter().enumerate() {
-                dense_b.append(i, 0, *val);
-            }
-            let dense_b = dense_b.to_sprs();
-
-
-            let mut new_state_sparse = Trpl::new();
-            for (i, val) in new_state[0].iter().enumerate() {
-                new_state_sparse.append(i, 0, *val);
-            }
-            let new_state_sparse = new_state_sparse.to_sprs();
+            let dense_b = Vector::from(&params);
+            let new_state_sparse = Vector::from(&new_state[0]);
 
             // Calculate -f(w_n(K)) = b(w_n(K)) - A(w_n(K)) w_n(K)
-            let ax = &matrix * &new_state_sparse;
-            let f = dense_b - ax;
+            let mut ax = dense_b.clone();
+            matrix.mat_vec_mul(&mut ax, 1.0, &new_state_sparse);
+
+            let mut f = ax.clone();
+            vec_add(&mut f, 1.0, &dense_b, -1.0, &ax);
 
             // Solve A(w_n(K)) dw = -f for dw
-            let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
-            lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
+            //let mut delta: Vec<f64> = f.to_dense().iter().flatten().copied().collect();
+            //lusol(&matrix, &mut delta, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
+            umfpack.factorize(&matrix, None);
+
+            let mut delta = f.clone();
+            umfpack.solve(&mut delta, &f, false);
 
             // dw dot dw
-            let err = delta.iter().map(|f| (f * step_size).powi(2)).sum::<f64>();
+            let err = delta.as_data().iter().map(|f| (f * step_size).powi(2)).sum::<f64>();
 
             if err > last_err && cfg.adaptive_step_size {
                 last_err = err;

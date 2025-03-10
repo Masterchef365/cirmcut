@@ -36,7 +36,8 @@ env_logger = "0.11"
 wasm-bindgen-futures = "0.4"
 web-sys = "0.3.70"           # to access the DOM (to hide the loading text)
 
-#[profile.release]
+[profile.release]
+debug = true
 #opt-level = 2 # fast and small wasm
 
 # Optimize all dependencies even in debug builds:
