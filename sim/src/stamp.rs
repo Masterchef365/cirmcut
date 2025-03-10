@@ -6,7 +6,7 @@ use russell_sparse::CooMatrix;
 use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
 
 pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (CooMatrix, Vec<f64>) {
-    let n = map.vector_size();
+    let n = map.vector_size().max(1);
 
     // (params, state)
     let mut matrix = CooMatrix::new(n, n, n*3, russell_sparse::Sym::No).unwrap();

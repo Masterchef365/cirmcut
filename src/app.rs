@@ -418,7 +418,7 @@ impl eframe::App for CircuitApp {
             ctx.request_repaint();
 
             if let Some(sim) = &mut self.sim {
-                //let start = std::time::Instant::now();
+                let start = std::time::Instant::now();
                 if let Err(e) = sim.step(
                     self.current_file.dt,
                     &self.current_file.diagram.to_primitive_diagram(),
@@ -430,7 +430,7 @@ impl eframe::App for CircuitApp {
                 } else {
                     self.error = None;
                 }
-                //println!("Time: {:.03} ms = {:.03} fps", start.elapsed().as_secs_f32() * 1000.0, 1.0 / (start.elapsed().as_secs_f32()));
+                println!("Time: {:.03} ms = {:.03} fps", start.elapsed().as_secs_f32() * 1000.0, 1.0 / (start.elapsed().as_secs_f32()));
             }
         }
     }
