@@ -1,7 +1,9 @@
 use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
 use std::collections::HashMap;
 
-use cirmcut_sim::{CellPos, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
+use cirmcut_sim::{PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
+
+pub type CellPos = (i32, i32);
 
 use crate::{
     components::{

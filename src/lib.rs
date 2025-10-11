@@ -3,8 +3,8 @@
 mod app;
 pub use app::CircuitApp;
 //mod camera;
-mod circuit_widget;
-mod components;
+pub mod circuit_widget;
+pub mod components;
 
 fn to_metric_prefix(value: f64, unit: char) -> String {
     // WARNING: Chatgpt did this lol

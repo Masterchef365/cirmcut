@@ -2,8 +2,6 @@ pub mod solver;
 mod map;
 mod stamp;
 
-pub type CellPos = (i32, i32);
-
 /// Represents the simplified topology of the network. This is the input to the simulator.
 /// This is an unsimplified representation, suitable for use with human interfaces.
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
