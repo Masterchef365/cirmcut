@@ -1,10 +1,10 @@
-use std::{collections::HashMap, ops::Range};
+use std::collections::HashMap;
 
-use rsparse::{data::{Sprs, Trpl}, lusol};
+use rsparse::data::{Sprs, Trpl};
 
-use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
+use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
-pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs, Vec<f64>) {
+pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs<f64>, Vec<f64>) {
     let n = map.vector_size();
 
     // (params, state)

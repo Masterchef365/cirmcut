@@ -1,8 +1,7 @@
-use std::ops::Range;
 
-use rsparse::{data::{Sprs, Trpl}, lusol};
+use rsparse::{data::Trpl, lusol};
 
-use crate::{map::PrimitiveDiagramMapping, stamp::stamp, PrimitiveDiagram, SimOutputs, TwoTerminalComponent};
+use crate::{map::PrimitiveDiagramMapping, stamp::stamp, PrimitiveDiagram, SimOutputs};
 
 pub struct Solver {
     map: PrimitiveDiagramMapping,

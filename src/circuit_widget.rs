@@ -1,7 +1,7 @@
 use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
 use std::collections::HashMap;
 
-use cirmcut_sim::{PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
+use cirmcut_sim::{PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
 
 pub type CellPos = (i32, i32);
 
@@ -852,6 +852,33 @@ impl Default for VisualizationOptions {
         Self {
             voltage_scale: 5.0,
             current_scale: 5.0,
+        }
+    }
+}
+
+impl DiagramState {
+    pub fn new(output: &SimOutputs, diagram: &PrimitiveDiagram) -> DiagramState {
+        DiagramState {
+            two_terminal: output
+                .two_terminal_current
+                .iter()
+                .zip(&diagram.two_terminal)
+                .map(|(&current, (indices, _))| {
+                    indices.map(|idx| DiagramWireState {
+                        voltage: output.voltages[idx],
+                        current,
+                    })
+                })
+            .collect(),
+            three_terminal: output.three_terminal_current.iter().zip(&diagram
+                .three_terminal)
+                .map(|(&current, (indices, _))| {
+                    [0, 1, 2].map(|offset| DiagramWireState {
+                        voltage: output.voltages[indices[offset]],
+                        current: current[offset],
+                    })
+                })
+            .collect(),
         }
     }
 }

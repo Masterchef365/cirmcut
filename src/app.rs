@@ -71,7 +71,7 @@ impl CircuitApp {
     fn state(&self) -> Option<DiagramState> {
         self.sim.as_ref().map(|sim| {
             let diag = self.current_file.diagram.to_primitive_diagram();
-            solver_to_diagramstate(sim.state(&diag), &diag)
+            DiagramState::new(&sim.state(&diag), &diag)
         })
     }
 
@@ -458,31 +458,6 @@ fn write_file(diagram: &CircuitFile, path: &Path) {
         }
         Ok(()) => (),
     };
-}
-
-fn solver_to_diagramstate(output: SimOutputs, diagram: &PrimitiveDiagram) -> DiagramState {
-    DiagramState {
-        two_terminal: output
-            .two_terminal_current
-            .iter()
-            .zip(&diagram.two_terminal)
-            .map(|(&current, (indices, _))| {
-                indices.map(|idx| DiagramWireState {
-                    voltage: output.voltages[idx],
-                    current,
-                })
-            })
-            .collect(),
-        three_terminal: output.three_terminal_current.iter().zip(&diagram
-            .three_terminal)
-            .map(|(&current, (indices, _))| {
-                [0, 1, 2].map(|offset| DiagramWireState {
-                    voltage: output.voltages[indices[offset]],
-                    current: current[offset],
-                })
-            })
-            .collect(),
-    }
 }
 
 impl Default for CircuitFile {
