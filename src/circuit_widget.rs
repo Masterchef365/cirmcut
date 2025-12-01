@@ -25,6 +25,7 @@ pub struct VisualizationOptions {
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct Diagram {
+    pub ports: Vec<([CellPos; 2], String)>,
     pub two_terminal: Vec<([CellPos; 2], TwoTerminalComponent)>,
     pub three_terminal: Vec<([CellPos; 3], ThreeTerminalComponent)>,
 }
@@ -51,8 +52,16 @@ impl Default for DiagramWireState {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum SelectionType {
+    Port,
+    TwoTerminal,
+    ThreeTerminal,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
-    selected: Option<(usize, bool)>,
+    selected: Option<(usize, SelectionType)>,
 }
 
 pub fn cellpos_to_egui((x, y): CellPos) -> Pos2 {
@@ -164,11 +173,11 @@ impl DiagramEditor {
     }
 
     pub fn delete(&mut self, diagram: &mut Diagram) {
-        if let Some((idx, three)) = self.selected.take() {
-            if three {
-                diagram.three_terminal.remove(idx);
-            } else {
-                diagram.two_terminal.remove(idx);
+        if let Some((idx, ty)) = self.selected.take() {
+            match ty {
+                SelectionType::Port => {diagram.ports.remove(idx);},
+                SelectionType::TwoTerminal => {diagram.two_terminal.remove(idx);},
+                SelectionType::ThreeTerminal => {diagram.three_terminal.remove(idx);},
             }
         }
     }
@@ -180,7 +189,7 @@ impl DiagramEditor {
         component: ThreeTerminalComponent,
     ) {
         let (x, y) = pos;
-        self.selected = Some((diagram.two_terminal.len(), true));
+        self.selected = Some((diagram.two_terminal.len(), SelectionType::ThreeTerminal));
         diagram
             .three_terminal
             .push(([pos, (x + 1, y + 1), (x + 1, y)], component));
@@ -193,7 +202,7 @@ impl DiagramEditor {
         component: TwoTerminalComponent,
     ) {
         let (x, y) = pos;
-        self.selected = Some((diagram.two_terminal.len(), false));
+        self.selected = Some((diagram.two_terminal.len(), SelectionType::TwoTerminal));
         diagram.two_terminal.push(([pos, (x + 1, y)], component));
     }
 
@@ -220,10 +229,10 @@ impl DiagramEditor {
                 ui,
                 *pos,
                 Id::new("body").with(idx),
-                self.selected == Some((idx, false)),
+                self.selected == Some((idx, SelectionType::TwoTerminal)),
             );
             if ret.clicked() {
-                new_selection = Some((idx, false));
+                new_selection = Some((idx, SelectionType::TwoTerminal));
             }
             two_body_responses.push(ret);
         }
@@ -233,11 +242,11 @@ impl DiagramEditor {
                 ui,
                 *pos,
                 Id::new("threebody").with(idx),
-                self.selected == Some((idx, true)),
+                self.selected == Some((idx, SelectionType::ThreeTerminal)),
                 vis,
             );
             if ret.clicked() {
-                new_selection = Some((idx, true));
+                new_selection = Some((idx, SelectionType::ThreeTerminal));
             }
             three_body_responses.push(ret);
         }
@@ -254,7 +263,7 @@ impl DiagramEditor {
                 comp,
                 *wires,
                 resp,
-                self.selected == Some((idx, false)),
+                self.selected == Some((idx, SelectionType::TwoTerminal)),
                 debug_draw,
                 vis,
             ) {
@@ -274,7 +283,7 @@ impl DiagramEditor {
                 *comp,
                 *wires,
                 resp,
-                self.selected == Some((idx, true)),
+                self.selected == Some((idx, SelectionType::ThreeTerminal)),
                 vis,
             ) {
                 destructive_change = true;
@@ -300,25 +309,36 @@ impl DiagramEditor {
         diagram: &mut Diagram,
         state: &DiagramState,
     ) -> bool {
-        if let Some((idx, is_threeterminal)) = self.selected {
-            if is_threeterminal {
-                if let Some((_, component)) = diagram.three_terminal.get_mut(idx) {
-                edit_threeterminal_component(
-                    ui,
-                    component,
-                    state.three_terminal[idx],
-                );
-                }
-            } else {
-                if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
-                    edit_twoterminal_component(ui, component, state.two_terminal[idx]);
-
-                    if ui.button("Flip").clicked() {
-                        terminals.swap(0, 1);
-                        return true;
+        if let Some((idx, ty)) = self.selected {
+            match ty {
+                SelectionType::Port => {
+                    if let Some((_, component)) = diagram.ports.get_mut(idx) {
+                        edit_port(
+                            ui,
+                            component,
+                        );
                     }
-                } else {
-                    eprintln!("Warning: Couldn't find {idx} in diagram");
+                },
+                SelectionType::ThreeTerminal => {
+                    if let Some((_, component)) = diagram.three_terminal.get_mut(idx) {
+                        edit_threeterminal_component(
+                            ui,
+                            component,
+                            state.three_terminal[idx],
+                        );
+                    }
+                },
+                SelectionType::TwoTerminal => {
+                    if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
+                        edit_twoterminal_component(ui, component, state.two_terminal[idx]);
+
+                        if ui.button("Flip").clicked() {
+                            terminals.swap(0, 1);
+                            return true;
+                        }
+                    } else {
+                        eprintln!("Warning: Couldn't find {idx} in diagram");
+                    }
                 }
             }
 
@@ -335,6 +355,17 @@ impl DiagramEditor {
 }
 
 // TODO: The following code sucks.
+fn interact_with_port(
+    ui: &mut Ui,
+    pos: CellPos,
+    id: Id,
+) -> egui::Response {
+    let epos = cellpos_to_egui(pos);
+    let body_rect = Rect::from_center_size(epos, Vec2::splat(10.0));
+
+    ui.interact(body_rect, id, Sense::click_and_drag())
+}
+
 
 fn interact_with_twoterminal_body(
     ui: &mut Ui,
@@ -801,6 +832,18 @@ impl DiagramState {
 fn edit_transistor(ui: &mut Ui, beta: &mut f64) -> Response {
     ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
+
+fn edit_port(
+    ui: &mut Ui,
+    component: &mut String,
+) {
+    ui.strong("Port");
+    ui.horizontal(|ui| {
+        ui.label("Name: ");
+        ui.text_edit_singleline(component);
+    });
+}
+
 
 fn edit_threeterminal_component(
     ui: &mut Ui,
