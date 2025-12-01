@@ -167,6 +167,10 @@ impl Solver {
             three_terminal_current,
         }
     }
+
+    pub fn map(&self) -> &PrimitiveDiagramMapping {
+        &self.map
+    }
 }
 
 impl Default for SolverConfig {

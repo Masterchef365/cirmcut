@@ -4,7 +4,7 @@ use crate::PrimitiveDiagram;
 
 /// Maps indices of the state vector (x from Ax = b) to the corresponding component voltages,
 /// currents, etc.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PrimitiveDiagramStateVectorMapping {
     pub n_currents: usize,
     pub n_voltage_drops: usize,
@@ -13,7 +13,7 @@ pub struct PrimitiveDiagramStateVectorMapping {
 
 /// Maps indices of the parameters (known values such as input voltage or current or signal).
 /// These are the known variables, or b from Ax = b.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct PrimitiveDiagramParameterMapping {
     pub n_components: usize,
     pub n_current_laws: usize,
@@ -21,6 +21,7 @@ pub struct PrimitiveDiagramParameterMapping {
 }
 
 /// Represents the mappings needed to work with either the state vector or the parameter map
+#[derive(Debug)]
 pub struct PrimitiveDiagramMapping {
     pub state_map: PrimitiveDiagramStateVectorMapping,
     pub param_map: PrimitiveDiagramParameterMapping,
