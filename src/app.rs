@@ -370,6 +370,14 @@ impl eframe::App for CircuitApp {
                             ThreeTerminalComponent::NTransistor(100.0),
                         );
                     }
+                    if ui.button("Port").clicked() {
+                        rebuild_sim = true;
+                        self.editor.new_port(
+                            &mut self.current_file.diagram,
+                            pos,
+                            "New port".into(),
+                        );
+                    }
                     /*
                     if ui.button("Delete").clicked() {
                         self.editor.delete();

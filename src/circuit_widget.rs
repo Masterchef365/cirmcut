@@ -182,6 +182,18 @@ impl DiagramEditor {
         }
     }
 
+    pub fn new_port(
+        &mut self,
+        diagram: &mut Diagram,
+        pos: CellPos,
+        component: String,
+    ) {
+        self.selected = Some((diagram.ports.len(), SelectionType::Port));
+        diagram
+            .ports
+            .push((pos, component));
+    }
+
     pub fn new_threeterminal(
         &mut self,
         diagram: &mut Diagram,
