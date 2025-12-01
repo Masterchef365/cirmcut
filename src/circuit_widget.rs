@@ -25,7 +25,7 @@ pub struct VisualizationOptions {
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct Diagram {
-    pub ports: Vec<([CellPos; 2], String)>,
+    pub ports: Vec<(CellPos, String)>,
     pub two_terminal: Vec<([CellPos; 2], TwoTerminalComponent)>,
     pub three_terminal: Vec<([CellPos; 3], ThreeTerminalComponent)>,
 }
@@ -224,6 +224,20 @@ impl DiagramEditor {
         let mut destructive_change = false;
         let mut new_selection = None;
 
+        for (idx, (pos, comp)) in diagram.ports.iter_mut().enumerate() {
+            let ret = interact_with_port_body(
+                ui,
+                comp,
+                pos,
+                Id::new("body").with(idx),
+            );
+            if ret.clicked() {
+                new_selection = Some((idx, SelectionType::TwoTerminal));
+            }
+            two_body_responses.push(ret);
+        }
+
+
         for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
                 ui,
@@ -355,17 +369,56 @@ impl DiagramEditor {
 }
 
 // TODO: The following code sucks.
-fn interact_with_port(
+fn interact_with_port_body(
     ui: &mut Ui,
-    pos: CellPos,
+    component: &mut String,
+    pos: &mut CellPos,
     id: Id,
 ) -> egui::Response {
-    let epos = cellpos_to_egui(pos);
-    let body_rect = Rect::from_center_size(epos, Vec2::splat(10.0));
+    let id = Id::new("port");
+    let begin = cellpos_to_egui(*pos);
 
-    ui.interact(body_rect, id, Sense::click_and_drag())
+    let handle_hitbox_size = 50.0;
+    let begin_hitbox = Rect::from_center_size(begin, Vec2::splat(handle_hitbox_size));
+
+    let mut begin_offset = Vec2::ZERO;
+
+    let begin_resp = ui.interact(begin_hitbox, id.with("begin"), Sense::click_and_drag());
+
+    let interact_pos = 
+        begin_resp.interact_pointer_pos();
+
+    if begin_resp.drag_started() {
+        if let Some(interact_pos) = interact_pos {
+            ui.memory_mut(|mem| *mem.data.get_temp_mut_or_default::<Pos2>(id) = interact_pos);
+        }
+    }
+
+    let interact_begin_pos = ui.memory_mut(|mem| mem.data.get_temp::<Pos2>(id));
+
+    let interact_delta = interact_begin_pos
+        .zip(interact_pos)
+        .map(|(start, stop)| stop - start);
+
+    if begin_resp.dragged() || begin_resp.drag_stopped() {
+        begin_offset = interact_delta.unwrap_or(Vec2::ZERO);
+    }
+
+    if begin_resp.drag_stopped() {
+        *pos = egui_to_cellpos(begin + begin_offset);
+    }
+
+    let color = Color32::ORANGE;
+    ui.painter().circle_stroke(
+        begin + begin_offset,
+        10.0,
+        Stroke::new(1., color),
+    );
+
+    ui.painter().text(begin + begin_offset, egui::Align2::RIGHT_TOP, component, Default::default(), color);
+
+    begin_resp
 }
-
 
 fn interact_with_twoterminal_body(
     ui: &mut Ui,
