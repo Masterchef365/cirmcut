@@ -51,8 +51,7 @@ impl Default for DiagramWireState {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize)]
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(serde::Deserialize, serde::Serialize, Copy, Clone, PartialEq, Eq)]
 enum SelectionType {
     Port,
     TwoTerminal,
@@ -175,23 +174,22 @@ impl DiagramEditor {
     pub fn delete(&mut self, diagram: &mut Diagram) {
         if let Some((idx, ty)) = self.selected.take() {
             match ty {
-                SelectionType::Port => {diagram.ports.remove(idx);},
-                SelectionType::TwoTerminal => {diagram.two_terminal.remove(idx);},
-                SelectionType::ThreeTerminal => {diagram.three_terminal.remove(idx);},
+                SelectionType::Port => {
+                    diagram.ports.remove(idx);
+                }
+                SelectionType::TwoTerminal => {
+                    diagram.two_terminal.remove(idx);
+                }
+                SelectionType::ThreeTerminal => {
+                    diagram.three_terminal.remove(idx);
+                }
             }
         }
     }
 
-    pub fn new_port(
-        &mut self,
-        diagram: &mut Diagram,
-        pos: CellPos,
-        component: String,
-    ) {
+    pub fn new_port(&mut self, diagram: &mut Diagram, pos: CellPos, component: String) {
         self.selected = Some((diagram.ports.len(), SelectionType::Port));
-        diagram
-            .ports
-            .push((pos, component));
+        diagram.ports.push((pos, component));
     }
 
     pub fn new_threeterminal(
@@ -242,13 +240,13 @@ impl DiagramEditor {
                 comp,
                 pos,
                 Id::new("body").with(idx),
+                self.selected == Some((idx, SelectionType::Port)),
             );
             if ret.clicked() {
-                new_selection = Some((idx, SelectionType::TwoTerminal));
+                new_selection = Some((idx, SelectionType::Port));
             }
             two_body_responses.push(ret);
         }
-
 
         for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
@@ -339,21 +337,14 @@ impl DiagramEditor {
             match ty {
                 SelectionType::Port => {
                     if let Some((_, component)) = diagram.ports.get_mut(idx) {
-                        edit_port(
-                            ui,
-                            component,
-                        );
+                        edit_port(ui, component);
                     }
-                },
+                }
                 SelectionType::ThreeTerminal => {
                     if let Some((_, component)) = diagram.three_terminal.get_mut(idx) {
-                        edit_threeterminal_component(
-                            ui,
-                            component,
-                            state.three_terminal[idx],
-                        );
+                        edit_threeterminal_component(ui, component, state.three_terminal[idx]);
                     }
-                },
+                }
                 SelectionType::TwoTerminal => {
                     if let Some((terminals, component)) = diagram.two_terminal.get_mut(idx) {
                         edit_twoterminal_component(ui, component, state.two_terminal[idx]);
@@ -386,8 +377,8 @@ fn interact_with_port_body(
     component: &mut String,
     pos: &mut CellPos,
     id: Id,
+    selected: bool,
 ) -> egui::Response {
-    let id = Id::new("port");
     let begin = cellpos_to_egui(*pos);
 
     let handle_hitbox_size = 50.0;
@@ -397,8 +388,7 @@ fn interact_with_port_body(
 
     let begin_resp = ui.interact(begin_hitbox, id.with("begin"), Sense::click_and_drag());
 
-    let interact_pos = 
-        begin_resp.interact_pointer_pos();
+    let interact_pos = begin_resp.interact_pointer_pos();
 
     if begin_resp.drag_started() {
         if let Some(interact_pos) = interact_pos {
@@ -420,14 +410,21 @@ fn interact_with_port_body(
         *pos = egui_to_cellpos(begin + begin_offset);
     }
 
-    let color = Color32::ORANGE;
-    ui.painter().circle_stroke(
-        begin + begin_offset,
-        10.0,
-        Stroke::new(1., color),
-    );
+    if selected {
+        draw_handle(ui, begin + begin_offset);
+    }
 
-    ui.painter().text(begin + begin_offset, egui::Align2::RIGHT_TOP, component, Default::default(), color);
+    let color = Color32::ORANGE;
+    ui.painter()
+        .circle_stroke(begin + begin_offset, 10.0, Stroke::new(1., color));
+
+    ui.painter().text(
+        begin + begin_offset,
+        egui::Align2::RIGHT_TOP,
+        component,
+        Default::default(),
+        color,
+    );
 
     begin_resp
 }
@@ -532,17 +529,9 @@ fn interact_with_twoterminal(
             );
         }
 
-        ui.painter().circle_stroke(
-            begin + begin_offset,
-            handle_hitbox_size / 2.0,
-            Stroke::new(1., Color32::WHITE),
-        );
+        draw_handle(ui, begin + begin_offset);
 
-        ui.painter().circle_stroke(
-            end + end_offset,
-            handle_hitbox_size / 2.0,
-            Stroke::new(1., Color32::WHITE),
-        );
+        draw_handle(ui, end + end_offset);
     }
 
     if debug_draw {
@@ -676,23 +665,11 @@ fn interact_with_threeterminal(
             ui.memory_mut(|mem| mem.data.remove::<Pos2>(id));
         }
 
-        ui.painter().circle_stroke(
-            a + a_offset,
-            handle_hitbox_size / 2.0,
-            Stroke::new(1., Color32::WHITE),
-        );
+        draw_handle(ui, a + a_offset);
 
-        ui.painter().circle_stroke(
-            b + b_offset,
-            handle_hitbox_size / 2.0,
-            Stroke::new(1., Color32::WHITE),
-        );
+        draw_handle(ui, b + b_offset);
 
-        ui.painter().circle_stroke(
-            c + c_offset,
-            handle_hitbox_size / 2.0,
-            Stroke::new(1., Color32::WHITE),
-        );
+        draw_handle(ui, c + c_offset);
     }
 
     let a = a + a_offset;
@@ -863,7 +840,7 @@ fn draw_twoterminal_component(
     match component {
         TwoTerminalComponent::Wire => wires[0].wire(painter, pos[0], pos[1], selected, vis),
         TwoTerminalComponent::Resistor(_) => draw_resistor(painter, pos, wires, selected, vis),
-        TwoTerminalComponent::Inductor(_,_) => draw_inductor(painter, pos, wires, selected, vis),
+        TwoTerminalComponent::Inductor(_, _) => draw_inductor(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Capacitor(_) => draw_capacitor(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Diode => draw_diode(painter, pos, wires, selected, vis),
         TwoTerminalComponent::Battery(_) => draw_battery(painter, pos, wires, selected, vis),
@@ -898,17 +875,13 @@ fn edit_transistor(ui: &mut Ui, beta: &mut f64) -> Response {
     ui.add(DragValue::new(beta).speed(1e-2).prefix("Beta: "))
 }
 
-fn edit_port(
-    ui: &mut Ui,
-    component: &mut String,
-) {
+fn edit_port(ui: &mut Ui, component: &mut String) {
     ui.strong("Port");
     ui.horizontal(|ui| {
         ui.label("Name: ");
         ui.text_edit_singleline(component);
     });
 }
-
 
 fn edit_threeterminal_component(
     ui: &mut Ui,
@@ -936,8 +909,11 @@ fn edit_twoterminal_component(
             if ui.checkbox(&mut has_core, "Core ID").changed() {
                 *maybe_coreid = has_core.then(|| 0);
             }
-            ui.add_enabled(has_core, DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)))
-        },
+            ui.add_enabled(
+                has_core,
+                DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)),
+            )
+        }
         TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
         TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω").speed(1e-2)),
         TwoTerminalComponent::Wire => ui.response(),
@@ -977,16 +953,23 @@ impl DiagramState {
                         current,
                     })
                 })
-            .collect(),
-            three_terminal: output.three_terminal_current.iter().zip(&diagram
-                .three_terminal)
+                .collect(),
+            three_terminal: output
+                .three_terminal_current
+                .iter()
+                .zip(&diagram.three_terminal)
                 .map(|(&current, (indices, _))| {
                     [0, 1, 2].map(|offset| DiagramWireState {
                         voltage: output.voltages[indices[offset]],
                         current: current[offset],
                     })
                 })
-            .collect(),
+                .collect(),
         }
     }
+}
+
+fn draw_handle(ui: &mut Ui, pos: Pos2) {
+    ui.painter()
+        .circle_stroke(pos, 25.0, Stroke::new(1., Color32::WHITE));
 }
