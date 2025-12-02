@@ -7,6 +7,7 @@ mod stamp;
 #[derive(serde::Deserialize, serde::Serialize, Clone, Debug)]
 pub struct PrimitiveDiagram {
     pub num_nodes: usize,
+    pub ports: Vec<(usize, String)>,
     pub two_terminal: Vec<([usize; 2], TwoTerminalComponent)>,
     pub three_terminal: Vec<([usize; 3], ThreeTerminalComponent)>,
 }

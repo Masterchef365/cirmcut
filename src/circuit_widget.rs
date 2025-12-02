@@ -104,6 +104,13 @@ impl Diagram {
     pub fn to_primitive_diagram(&self) -> PrimitiveDiagram {
         let mut all_positions: HashMap<CellPos, usize> = HashMap::new();
 
+        for (pos, _) in &self.ports {
+            let idx = all_positions.len();
+            if !all_positions.contains_key(&pos) {
+                all_positions.insert(*pos, idx);
+            }
+        }
+
         for (positions, _) in &self.two_terminal {
             for pos in positions {
                 let idx = all_positions.len();
@@ -122,6 +129,12 @@ impl Diagram {
             }
         }
 
+        let ports = self
+            .ports
+            .iter()
+            .map(|(pos, component)| (all_positions[&pos], component.clone()))
+            .collect();
+
         let two_terminal = self
             .two_terminal
             .iter()
@@ -136,6 +149,7 @@ impl Diagram {
 
         PrimitiveDiagram {
             num_nodes: all_positions.len(),
+            ports,
             two_terminal,
             three_terminal,
         }
