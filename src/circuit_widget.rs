@@ -129,12 +129,6 @@ impl Diagram {
             }
         }
 
-        let ports = self
-            .ports
-            .iter()
-            .map(|(pos, component)| (all_positions[&pos], component.clone()))
-            .collect();
-
         let two_terminal = self
             .two_terminal
             .iter()
@@ -149,7 +143,6 @@ impl Diagram {
 
         PrimitiveDiagram {
             num_nodes: all_positions.len(),
-            ports,
             two_terminal,
             three_terminal,
         }
