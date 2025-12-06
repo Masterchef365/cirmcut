@@ -4,8 +4,8 @@ use rsparse::{data::Trpl, lusol};
 use crate::{map::PrimitiveDiagramMapping, stamp::stamp, PrimitiveDiagram, SimOutputs};
 
 pub struct Solver {
-    map: PrimitiveDiagramMapping,
-    soln_vector: Vec<f64>,
+    pub map: PrimitiveDiagramMapping,
+    pub soln_vector: Vec<f64>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
