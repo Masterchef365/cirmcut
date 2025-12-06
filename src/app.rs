@@ -71,7 +71,7 @@ impl CircuitApp {
     fn state(&self) -> Option<DiagramState> {
         self.sim.as_ref().map(|sim| {
             let diag = self.current_file.diagram.to_primitive_diagram();
-            DiagramState::new(&sim.state(&diag), &diag)
+            DiagramState::new(&sim.state(&diag.primitive), &diag.primitive)
         })
     }
 
@@ -418,7 +418,7 @@ impl eframe::App for CircuitApp {
         // Reset
         if rebuild_sim {
             self.sim = Some(Solver::new(
-                &self.current_file.diagram.to_primitive_diagram(),
+                &self.current_file.diagram.to_primitive_diagram().primitive,
             ));
         }
 
@@ -429,7 +429,7 @@ impl eframe::App for CircuitApp {
                 //let start = std::time::Instant::now();
                 if let Err(e) = sim.step(
                     self.current_file.dt,
-                    &self.current_file.diagram.to_primitive_diagram(),
+                    &self.current_file.diagram.to_primitive_diagram().primitive,
                     &self.current_file.cfg,
                 ) {
                     eprintln!("{}", e);

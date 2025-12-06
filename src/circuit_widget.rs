@@ -101,15 +101,8 @@ impl Diagram {
             .collect()
     }
 
-    pub fn to_primitive_diagram(&self) -> PrimitiveDiagram {
+    pub fn to_primitive_diagram(&self) -> RichPrimitiveDiagram {
         let mut all_positions: HashMap<CellPos, usize> = HashMap::new();
-
-        for (pos, _) in &self.ports {
-            let idx = all_positions.len();
-            if !all_positions.contains_key(&pos) {
-                all_positions.insert(*pos, idx);
-            }
-        }
 
         for (positions, _) in &self.two_terminal {
             for pos in positions {
@@ -141,12 +134,25 @@ impl Diagram {
             .map(|(positions, component)| (positions.map(|pos| all_positions[&pos]), *component))
             .collect();
 
-        PrimitiveDiagram {
+        let primitive = PrimitiveDiagram {
             num_nodes: all_positions.len(),
             two_terminal,
             three_terminal,
+        };
+
+        let mut ports: HashMap<String, Vec<usize>> = HashMap::default();
+        for (pos, name) in self.ports.iter() {
+            ports.entry(name.clone()).or_default().push(all_positions[pos]);
         }
+
+        RichPrimitiveDiagram { primitive, all_positions, ports }
     }
+}
+
+pub struct RichPrimitiveDiagram { 
+    pub primitive: PrimitiveDiagram, 
+    pub all_positions: HashMap<CellPos, usize>,
+    pub ports: HashMap<String, Vec<usize>>
 }
 
 pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {

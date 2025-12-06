@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 pub mod solver;
-mod map;
+pub mod map;
 mod stamp;
 
 /// Represents the simplified topology of the network. This is the input to the simulator.
@@ -82,5 +82,14 @@ impl PrimitiveDiagram {
                 crate::TwoTerminalComponent::Battery(v) => Some((component_idx, v)),
                 _ => None,
             })
+    }
+
+    /// Wire together several indices in bulk
+    pub fn solder_blob(&mut self, indices: &[usize]) {
+        for i in 0..indices.len() {
+            for j in i + 1..indices.len() {
+                self.two_terminal.push(([indices[i], indices[j]], TwoTerminalComponent::Wire));
+            }
+        }
     }
 }
