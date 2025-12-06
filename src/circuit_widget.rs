@@ -142,7 +142,9 @@ impl Diagram {
 
         let mut ports: HashMap<String, Vec<usize>> = HashMap::default();
         for (pos, name) in self.ports.iter() {
-            ports.entry(name.clone()).or_default().push(all_positions[pos]);
+            if let Some(pos) = all_positions.get(&pos) {
+                ports.entry(name.clone()).or_default().push(*pos);
+            }
         }
 
         RichPrimitiveDiagram { primitive, all_positions, ports }
