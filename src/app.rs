@@ -431,6 +431,7 @@ impl eframe::App for CircuitApp {
                     self.current_file.dt,
                     &self.current_file.diagram.to_primitive_diagram().primitive,
                     &self.current_file.cfg,
+                    None,
                 ) {
                     eprintln!("{}", e);
                     self.error = Some(e);

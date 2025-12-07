@@ -41,17 +41,17 @@ impl Solver {
     }
 
     /// Note: Assumes diagram is compatible what a sufficiently large battery (or a battery with very low internal resisith the one this solver was created with!
-    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    pub fn step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig, external_params: Option<&[f64]>) -> Result<(), String> {
         match cfg.mode {
-            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg),
-            SolverMode::Linear => self.linear_step(dt, diagram, cfg),
+            SolverMode::NewtonRaphson => self.nr_step(dt, diagram, cfg, external_params),
+            SolverMode::Linear => self.linear_step(dt, diagram, cfg, external_params),
         }
     }
 
-    fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    fn linear_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig, external_params: Option<&[f64]>) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
-        let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln);
+        let (matrix, params) = stamp(dt, &self.map, diagram, &prev_time_step_soln, &prev_time_step_soln, external_params);
 
         let mut new_soln = params;
         lusol(&matrix, &mut new_soln, -1, cfg.dx_soln_tolerance).map_err(|e| e.to_string())?;
@@ -61,7 +61,7 @@ impl Solver {
         Ok(())
     }
 
-    fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig) -> Result<(), String> {
+    fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig, external_params: Option<&[f64]>) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
         let mut new_state = [prev_time_step_soln.clone()];
@@ -72,7 +72,7 @@ impl Solver {
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln);
+            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln, external_params);
 
             if params.len() == 0 {
                 return Ok(());

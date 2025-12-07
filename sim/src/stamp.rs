@@ -4,12 +4,16 @@ use rsparse::data::{Sprs, Trpl};
 
 use crate::{map::PrimitiveDiagramMapping, PrimitiveDiagram, ThreeTerminalComponent, TwoTerminalComponent};
 
-pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64]) -> (Sprs<f64>, Vec<f64>) {
+pub fn stamp(dt: f64, map: &PrimitiveDiagramMapping, diagram: &PrimitiveDiagram, last_iteration: &[f64], last_timestep: &[f64], external_params: Option<&[f64]>) -> (Sprs<f64>, Vec<f64>) {
     let n = map.vector_size();
 
     // (params, state)
     let mut matrix = Trpl::new();
     let mut params = vec![0_f64; n];
+    
+    if let Some(ext) = external_params {
+        params.copy_from_slice(ext);
+    }
 
     // TODO: Three-terminal components
 
