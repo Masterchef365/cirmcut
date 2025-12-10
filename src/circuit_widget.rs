@@ -243,6 +243,7 @@ impl DiagramEditor {
         debug_draw: bool,
         vis: &VisualizationOptions,
     ) -> bool {
+        let mut port_responses = vec![];
         let mut two_body_responses = vec![];
         let mut three_body_responses = vec![];
 
@@ -256,14 +257,15 @@ impl DiagramEditor {
                 pos,
                 Id::new("body").with(idx),
                 self.selected == Some((idx, SelectionType::Port)),
+                &mut destructive_change,
             );
             if ret.clicked() {
                 new_selection = Some((idx, SelectionType::Port));
             }
-            two_body_responses.push(ret);
+            port_responses.push(ret);
         }
 
-        for (idx, (pos, comp)) in diagram.two_terminal.iter_mut().enumerate() {
+        for (idx, (pos, _comp)) in diagram.two_terminal.iter_mut().enumerate() {
             let ret = interact_with_twoterminal_body(
                 ui,
                 *pos,
@@ -393,6 +395,7 @@ fn interact_with_port_body(
     pos: &mut CellPos,
     id: Id,
     selected: bool,
+    destructive_change: &mut bool,
 ) -> egui::Response {
     let begin = cellpos_to_egui(*pos);
 
@@ -423,6 +426,7 @@ fn interact_with_port_body(
 
     if begin_resp.drag_stopped() {
         *pos = egui_to_cellpos(begin + begin_offset);
+        *destructive_change = true;
     }
 
     if selected {
