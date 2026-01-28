@@ -52,7 +52,7 @@ impl Default for DiagramWireState {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Copy, Clone, PartialEq, Eq)]
-enum SelectionType {
+pub enum SelectionType {
     Port,
     TwoTerminal,
     ThreeTerminal,
@@ -60,7 +60,7 @@ enum SelectionType {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct DiagramEditor {
-    selected: Option<(usize, SelectionType)>,
+    pub selected: Option<(usize, SelectionType)>,
 }
 
 pub fn cellpos_to_egui((x, y): CellPos) -> Pos2 {

@@ -15,7 +15,7 @@ use egui::{
 };
 
 use crate::{circuit_widget::{
-    Diagram, DiagramEditor, DiagramState, DiagramWireState, VisualizationOptions, draw_grid, egui_to_cellpos
+    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions, draw_grid, egui_to_cellpos
 }, to_metric_prefix};
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -306,11 +306,22 @@ impl eframe::App for CircuitApp {
             egui::SidePanel::right("matrix").show(ctx, |ui| {
                 ui.heading("Matrix");
                 if let Some(solver) = &self.sim {
+                    let diagram = self.current_file.diagram.to_primitive_diagram();
+                    let mut selection = None;
+                    if let Some((idx, SelectionType::TwoTerminal)) = self.editor.selected {
+                        selection = Some(idx);
+                    }
+
+                    if let Some((idx, SelectionType::ThreeTerminal)) = self.editor.selected {
+                        selection = Some(idx + diagram.primitive.two_terminal.len());
+                    }
+
                     show_parameter_matrix(
                         ui,
                         self.current_file.dt,
                         solver,
-                        &self.current_file.diagram.to_primitive_diagram().primitive,
+                        &diagram.primitive,
+                        selection,
                     );
                 }
                 ui.checkbox(&mut self.show_matrix, "Show matrix");
@@ -543,7 +554,7 @@ fn display_number(ui: &mut Ui, value: f64) {
     ui.strong(format!("{value:.2e}"));
 }
 
-fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &PrimitiveDiagram) {
+fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &PrimitiveDiagram, selected_idx: Option<usize>) {
     //let map: HashMap<usize, ()>;
     let (matrix, params) = stamp(
         dt,
@@ -568,7 +579,9 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
     }
 
     for (idx, _) in sim.map.param_map.components().enumerate() {
-        parameter_names.push(format!("{}", component_names[idx]));
+        if let Some(name) = component_names.get(idx) {
+            parameter_names.push(format!("{name}"));
+        }
     }
 
     for (idx, _) in sim.map.param_map.current_laws().enumerate() {
@@ -616,6 +629,12 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
                 ui.end_row();
 
                 for (row_idx, row) in dense.iter().enumerate() {
+                    let old_fg_stroke = ui.style_mut().visuals.widgets.active.fg_stroke;
+                    if selected_idx == Some(row_idx) {
+                        ui.style_mut().visuals.override_text_color = Some(Color32::CYAN);
+                        ui.style_mut().visuals.widgets.active.fg_stroke.color = Color32::CYAN;
+                    }
+
                     // Matrix
                     ui.strong(&parameter_names[row_idx]);
                     for col in row {
@@ -643,6 +662,9 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
                     // Parameters
                     ui.weak(&parameter_names[row_idx]);
                     display_number(ui, params[row_idx]);
+
+                    ui.style_mut().visuals.override_text_color = None;
+                    ui.style_mut().visuals.widgets.active.fg_stroke = old_fg_stroke;
 
                     ui.end_row();
                 }
