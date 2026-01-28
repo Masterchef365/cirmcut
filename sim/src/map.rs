@@ -41,6 +41,8 @@ impl PrimitiveDiagramMapping {
     }
 }
 
+/// Vector indices for each of component laws, current laws, voltage laws.
+/// Each two-terminal component has one law, each three terminal component has two internal laws.
 impl PrimitiveDiagramParameterMapping {
     pub fn new(diagram: &PrimitiveDiagram) -> Self {
         Self {

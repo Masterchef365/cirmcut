@@ -1,13 +1,11 @@
 use std::{
-    ffi::OsStr,
-    fs::File,
-    path::{Path, PathBuf},
+    collections::HashMap, ffi::OsStr, fs::File, path::{Path, PathBuf}
 };
 
 use cirmcut_sim::{
-    solver::{Solver, SolverConfig, SolverMode}, PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent
+    PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent, solver::{Solver, SolverConfig, SolverMode}, stamp::stamp
 };
-use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Vec2, ViewportCommand};
+use egui::{Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Ui, Vec2, ViewportCommand};
 
 use crate::circuit_widget::{
     draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
@@ -20,6 +18,7 @@ pub struct CircuitApp {
     editor: DiagramEditor,
     debug_draw: bool,
     current_path: Option<PathBuf>,
+    show_matrix: bool,
 
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
@@ -43,6 +42,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
+            show_matrix: true,
             vis_opt: VisualizationOptions::default(),
             error: None,
             sim: None,
@@ -164,6 +164,15 @@ impl eframe::App for CircuitApp {
                 ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.hyperlink_to("Source code on GitHub", "https://github.com/Masterchef365/cirmcut");
                 });
+
+                ui.menu_button("View", |ui| {
+                    egui::Grid::new("viewgrid").show(ui, |ui| {
+                        ui.label("Show matrix");
+                        ui.checkbox(&mut self.show_matrix, "On");
+                        ui.end_row();
+                    });
+
+                });
             });
         });
 
@@ -283,6 +292,12 @@ impl eframe::App for CircuitApp {
                     //self.vis_opt.voltage_scale =
                 }
             });
+        });
+
+        egui::SidePanel::right("matrix").show(ctx, |ui| {
+            if let Some(solver) = &self.sim {
+                show_parameter_matrix(ui, self.current_file.dt, solver, &self.current_file.diagram.to_primitive_diagram().primitive);
+            }
         });
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
@@ -477,4 +492,94 @@ impl Default for CircuitFile {
             cfg: Default::default(),
         }
     }
+}
+
+fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &PrimitiveDiagram) {
+    //let map: HashMap<usize, ()>;
+    let (matrix, params) = stamp(dt, &sim.map, diagram, &sim.soln_vector, &sim.soln_vector, None);
+    // TODO: Slow!
+    let dense = matrix.to_dense();
+
+    let mut state_names = vec![];
+    let mut parameter_names = vec![];
+
+    for (idx, _) in sim.map.param_map.components().enumerate() {
+        parameter_names.push(format!("Component {idx}"));
+    }
+    for (idx, _) in sim.map.param_map.current_laws().enumerate() {
+        parameter_names.push(format!("Current law {idx}"));
+    }
+    for (idx, _) in sim.map.param_map.voltage_laws().enumerate() {
+        parameter_names.push(format!("Voltage law {idx}"));
+    }
+
+    for (idx, _) in sim.map.state_map.currents().enumerate() {
+        state_names.push(format!("I_{idx}"));
+    }
+    for (idx, _) in sim.map.state_map.voltage_drops().enumerate() {
+        state_names.push(format!("Vd_{idx}"));
+    }
+    for (idx, _) in sim.map.state_map.voltages().enumerate() {
+        state_names.push(format!("V_{idx}"));
+    }
+
+    egui::ScrollArea::both().show(ui, |ui| {
+        egui::Grid::new("circuitmatrix").striped(true).show(ui, |ui| {
+            let n_cols = dense.get(0).map(|v| v.len()).unwrap_or(0);
+            let nrows = dense.len();
+
+            // Matrix
+            ui.label("Matrix");
+            for col_idx in 0..n_cols {
+                ui.label(&state_names[col_idx]);
+            }
+
+            // Multiply sign
+            ui.label("");
+
+            // Column headers for the rest
+            ui.label("Solution vector");
+            ui.label("");
+
+            // Equals sign
+            ui.label("");
+
+            ui.label("Parameters");
+            ui.label("");
+            ui.end_row();
+
+
+            for (row_idx, row) in dense.iter().enumerate() {
+                // Matrix
+                for col in row {
+                    ui.label(col.to_string());
+                }
+
+                // Multiply sign
+                if row_idx == nrows / 2 {
+                    ui.label("x");
+                } else {
+                    ui.label("");
+                }
+
+                // Solution vector
+                ui.label(&state_names[row_idx]);
+                ui.label(format!("{:.02e}", sim.soln_vector[row_idx]));
+
+                // Equals sign
+                if row_idx == nrows / 2 {
+                    ui.label("=");
+                } else {
+                    ui.label("");
+                }
+
+                // Parameters
+                ui.label(&parameter_names[row_idx]);
+                ui.label(format!("{:.2e}", params[row_idx]));
+
+
+                ui.end_row();
+            }
+        });
+    });
 }

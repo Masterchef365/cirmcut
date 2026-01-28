@@ -1,8 +1,6 @@
-use std::collections::HashMap;
-
 pub mod solver;
 pub mod map;
-mod stamp;
+pub mod stamp;
 
 /// Represents the simplified topology of the network. This is the input to the simulator.
 /// This is an unsimplified representation, suitable for use with human interfaces.
