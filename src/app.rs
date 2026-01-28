@@ -302,16 +302,20 @@ impl eframe::App for CircuitApp {
             });
         });
 
-        egui::SidePanel::right("matrix").show(ctx, |ui| {
-            if let Some(solver) = &self.sim {
-                show_parameter_matrix(
-                    ui,
-                    self.current_file.dt,
-                    solver,
-                    &self.current_file.diagram.to_primitive_diagram().primitive,
-                );
-            }
-        });
+        if self.show_matrix {
+            egui::SidePanel::right("matrix").show(ctx, |ui| {
+                ui.heading("Matrix");
+                if let Some(solver) = &self.sim {
+                    show_parameter_matrix(
+                        ui,
+                        self.current_file.dt,
+                        solver,
+                        &self.current_file.diagram.to_primitive_diagram().primitive,
+                    );
+                }
+                ui.checkbox(&mut self.show_matrix, "Show matrix");
+            });
+        }
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
@@ -534,9 +538,18 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
     let mut state_names = vec![];
     let mut parameter_names = vec![];
 
-    for (idx, _) in sim.map.param_map.components().enumerate() {
-        parameter_names.push(format!("Component {idx}"));
+    let mut component_names = vec![];
+    for (_, component) in diagram.two_terminal.iter() {
+        component_names.push(component.name());
     }
+    for (_, component) in diagram.three_terminal.iter() {
+        component_names.push(component.name());
+    }
+
+    for (idx, _) in sim.map.param_map.components().enumerate() {
+        parameter_names.push(format!("{}", component_names[idx]));
+    }
+
     for (idx, _) in sim.map.param_map.current_laws().enumerate() {
         parameter_names.push(format!("Current law {idx}"));
     }
