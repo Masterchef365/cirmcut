@@ -14,10 +14,9 @@ use egui::{
     Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Ui, Vec2, ViewportCommand,
 };
 
-use crate::circuit_widget::{
-    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
-    VisualizationOptions,
-};
+use crate::{circuit_widget::{
+    Diagram, DiagramEditor, DiagramState, DiagramWireState, VisualizationOptions, draw_grid, egui_to_cellpos
+}, to_metric_prefix};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
@@ -207,12 +206,15 @@ impl eframe::App for CircuitApp {
 
                 rebuild_sim |= ui.button("Reset").clicked();
 
-                ui.add(
-                    DragValue::new(&mut self.current_file.dt)
-                        .prefix("dt: ")
+                ui.horizontal(|ui| {
+                    ui.label("Δt: ");
+                    ui.add(
+                        DragValue::new(&mut self.current_file.dt)
                         .speed(1e-7)
                         .suffix(" s"),
-                );
+                    );
+                    ui.label(to_metric_prefix(self.current_file.dt, 's'));
+                });
 
                 if let Some(error) = &self.error {
                     ui.label(RichText::new(error).color(Color32::RED));
