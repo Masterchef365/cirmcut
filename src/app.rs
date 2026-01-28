@@ -167,19 +167,19 @@ impl eframe::App for CircuitApp {
                     egui::widgets::global_theme_preference_buttons(ui);
                 });
 
-                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.hyperlink_to(
-                        "Source code on GitHub",
-                        "https://github.com/Masterchef365/cirmcut",
-                    );
-                });
-
                 ui.menu_button("View", |ui| {
                     egui::Grid::new("viewgrid").show(ui, |ui| {
                         ui.label("Show matrix");
                         ui.checkbox(&mut self.show_matrix, "On");
                         ui.end_row();
                     });
+                });
+
+                ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.hyperlink_to(
+                        "Source code on GitHub",
+                        "https://github.com/Masterchef365/cirmcut",
+                    );
                 });
             });
         });
@@ -522,6 +522,25 @@ fn to_subscript(s: String) -> String {
         .collect()
 }
 
+fn display_number(ui: &mut Ui, value: f64) {
+    if value == 0.0 {
+        ui.weak("0");
+        return;
+    }
+
+    if value == 1.0 {
+        ui.strong("1");
+        return;
+    }
+
+    if value == -1.0 {
+        ui.strong("-1");
+        return;
+    }
+
+    ui.strong(format!("{value:.2e}"));
+}
+
 fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &PrimitiveDiagram) {
     //let map: HashMap<usize, ()>;
     let (matrix, params) = stamp(
@@ -598,7 +617,7 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
                     // Matrix
                     ui.strong(&parameter_names[row_idx]);
                     for col in row {
-                        ui.label(col.to_string());
+                        display_number(ui, *col);
                     }
 
                     // Multiply sign
@@ -610,7 +629,7 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
 
                     // Solution vector
                     ui.weak(&state_names[row_idx]);
-                    ui.label(format!("{:.02e}", sim.soln_vector[row_idx]));
+                    display_number(ui, sim.soln_vector[row_idx]);
 
                     // Equals sign
                     if row_idx == nrows / 2 {
@@ -621,7 +640,7 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
 
                     // Parameters
                     ui.weak(&parameter_names[row_idx]);
-                    ui.label(format!("{:.2e}", params[row_idx]));
+                    display_number(ui, params[row_idx]);
 
                     ui.end_row();
                 }
