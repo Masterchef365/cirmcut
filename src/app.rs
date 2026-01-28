@@ -576,14 +576,12 @@ fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &Primitive
     }
     for (_, component) in diagram.three_terminal.iter() {
         component_names.push(component.name());
+        component_names.push(component.name());
     }
 
     for (idx, _) in sim.map.param_map.components().enumerate() {
-        if let Some(name) = component_names.get(idx) {
-            parameter_names.push(format!("{name}"));
-        }
+        parameter_names.push(component_names[idx].to_string());
     }
-
     for (idx, _) in sim.map.param_map.current_laws().enumerate() {
         parameter_names.push(format!("Current law {idx}"));
     }
