@@ -172,6 +172,10 @@ impl eframe::App for CircuitApp {
                         ui.label("Show matrix");
                         ui.checkbox(&mut self.show_matrix, "On");
                         ui.end_row();
+                        if ui.button("Reset viewbox").clicked() {
+                            self.view_rect = Rect::ZERO;
+                        }
+                        ui.end_row();
                     });
                 });
 
