@@ -64,7 +64,7 @@ impl Solver {
     fn nr_step(&mut self, dt: f64, diagram: &PrimitiveDiagram, cfg: &SolverConfig, external_params: Option<&[f64]>) -> Result<(), String> {
         let prev_time_step_soln = &self.soln_vector;
 
-        let mut new_state = [prev_time_step_soln.clone()];
+        let mut new_state = prev_time_step_soln.clone();
 
         let mut step_size: f64 = cfg.nr_step_size;
 
@@ -72,7 +72,7 @@ impl Solver {
         let mut nr_iters = 0;
         for _ in 0..cfg.max_nr_iters {
             // Calculate A(w_n(K)), b(w_n(K))
-            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state[0], &prev_time_step_soln, external_params);
+            let (matrix, params) = stamp(dt, &self.map, diagram, &new_state, &prev_time_step_soln, external_params);
 
             if params.len() == 0 {
                 return Ok(());
@@ -86,7 +86,7 @@ impl Solver {
 
 
             let mut new_state_sparse = Trpl::new();
-            for (i, val) in new_state[0].iter().enumerate() {
+            for (i, val) in new_state.iter().enumerate() {
                 new_state_sparse.append(i, 0, *val);
             }
             let new_state_sparse = new_state_sparse.to_sprs();
@@ -104,30 +104,22 @@ impl Solver {
 
             if err > last_err && cfg.adaptive_step_size {
                 last_err = err;
-                //dbg!(step_size);
                 step_size /= 2.0;
                 continue;
-                //return Err("Error value increased!".to_string());
-                //eprintln!("Error value increased! {}", err - last_err);
             }
 
             // w += dw * step size
-            new_state[0].iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * step_size);
+            new_state.iter_mut().zip(&delta).for_each(|(n, delta)| *n += delta * step_size);
 
             if err < cfg.nr_tolerance {
                 break;
             }
-            //dbg!(err);
 
             last_err = err;
             nr_iters += 1;
         }
 
-        if nr_iters > 0 {
-            //dbg!(nr_iters);
-        }
-
-        [self.soln_vector] = new_state;
+        self.soln_vector = new_state;
 
         Ok(())
     }

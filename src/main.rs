@@ -18,7 +18,7 @@ fn main() -> eframe::Result {
         ..Default::default()
     };
     eframe::run_native(
-        "Cirmcut simulamtor",
+        "Cicuit simulator",
         native_options,
         Box::new(|cc| Ok(Box::new(cirmcut::CircuitApp::new(cc)))),
     )

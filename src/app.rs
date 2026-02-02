@@ -48,7 +48,7 @@ struct CircuitFile {
 impl Default for CircuitApp {
     fn default() -> Self {
         Self {
-            show_matrix: true,
+            show_matrix: false,
             vis_opt: VisualizationOptions::default(),
             error: None,
             sim: None,
@@ -128,7 +128,7 @@ impl CircuitApp {
 
     fn update_title(&self, ctx: &egui::Context) {
         if let Some(path) = self.current_path.as_ref().and_then(|file| file.to_str()) {
-            ctx.send_viewport_cmd(ViewportCommand::Title(format!("Cirmcut {path}")));
+            ctx.send_viewport_cmd(ViewportCommand::Title(format!("Circuit {path}")));
         }
     }
 }
