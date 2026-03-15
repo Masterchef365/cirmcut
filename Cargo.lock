@@ -964,7 +964,6 @@ dependencies = [
 [[package]]
 name = "egui-simpletabs"
 version = "0.1.0"
-source = "git+https://github.com/Masterchef365/egui-simpletabs.git?rev=81a7e19f6ace43d8112f1d6695f9568b1242e8d1#81a7e19f6ace43d8112f1d6695f9568b1242e8d1"
 dependencies = [
  "egui",
 ]

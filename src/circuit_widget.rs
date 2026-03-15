@@ -1,4 +1,5 @@
 use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
+use egui_simpletabs::to_metric_prefix;
 use std::collections::HashMap;
 
 use cirmcut_sim::{PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
@@ -10,7 +11,6 @@ use crate::{
         draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode,
         draw_inductor, draw_resistor, draw_switch, draw_transistor,
     },
-    to_metric_prefix,
 };
 
 pub const CELL_SIZE: f32 = 100.0;

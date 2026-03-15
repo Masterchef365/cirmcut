@@ -16,7 +16,7 @@ use egui::{
 
 use crate::{circuit_widget::{
     Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions, draw_grid, egui_to_cellpos
-}, to_metric_prefix};
+}};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
@@ -208,11 +208,10 @@ impl eframe::App for CircuitApp {
                 ui.horizontal(|ui| {
                     ui.label("Δt: ");
                     ui.add(
-                        DragValue::new(&mut self.current_file.dt)
-                        .speed(1e-7)
-                        .suffix(" s"),
+                        egui_simpletabs::metric_prefix_dragvalue(DragValue::new(&mut self.current_file.dt).speed(1e-3)
+                        , "s")
                     );
-                    ui.label(to_metric_prefix(self.current_file.dt, 's'));
+                    ui.label(egui_simpletabs::to_metric_prefix(self.current_file.dt, 's'));
                 });
 
                 if let Some(error) = &self.error {

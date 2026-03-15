@@ -2,10 +2,10 @@ use std::f32::consts::{PI, TAU};
 
 use cirmcut_sim::TwoTerminalComponent;
 use egui::{Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
+use egui_simpletabs::to_metric_prefix;
 
 use crate::{
     circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE},
-    to_metric_prefix,
 };
 
 pub fn draw_transistor(

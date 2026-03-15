@@ -23,8 +23,8 @@ log = "0.4"
 cirmcut-sim = { path = "sim" }
 rfd = "0.15.2"
 ron = "0.8.1"
-egui-simpletabs = { git = "https://github.com/Masterchef365/egui-simpletabs.git", rev = "81a7e19f6ace43d8112f1d6695f9568b1242e8d1" }
-#egui-simpletabs = { path = "../egui-simpletabs" }
+#egui-simpletabs = { git = "https://github.com/Masterchef365/egui-simpletabs.git", rev = "81a7e19f6ace43d8112f1d6695f9568b1242e8d1" }
+egui-simpletabs = { path = "../egui-simpletabs" }
 
 # You only need serde if you want app persistence:
 serde = { version = "1", features = ["derive"] }
