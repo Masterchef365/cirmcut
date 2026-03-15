@@ -208,10 +208,8 @@ impl eframe::App for CircuitApp {
                 ui.horizontal(|ui| {
                     ui.label("Δt: ");
                     ui.add(
-                        egui_simpletabs::metric_prefix_dragvalue(DragValue::new(&mut self.current_file.dt).speed(1e-3)
-                        , "s")
+                        egui_simpletabs::edit_metric_f64(&mut self.current_file.dt, "s")
                     );
-                    ui.label(egui_simpletabs::to_metric_prefix(self.current_file.dt, 's'));
                 });
 
                 if let Some(error) = &self.error {
@@ -273,12 +271,12 @@ impl eframe::App for CircuitApp {
                 ui.separator();
                 ui.strong("Visualization");
                 ui.add(
-                    DragValue::new(&mut self.vis_opt.voltage_scale)
+                    egui_simpletabs::edit_metric_f64(&mut self.vis_opt.voltage_scale, "V")
                         .prefix("Voltage scale: ")
                         .speed(1e-2),
                 );
                 ui.add(
-                    DragValue::new(&mut self.vis_opt.current_scale)
+                    egui_simpletabs::edit_metric_f64(&mut self.vis_opt.current_scale, "A")
                         .prefix("Current scale: ")
                         .speed(1e-2),
                 );

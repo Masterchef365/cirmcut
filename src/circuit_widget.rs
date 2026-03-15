@@ -1,5 +1,5 @@
 use egui::{Color32, DragValue, Id, Painter, Pos2, Rect, Response, Sense, Shape, Stroke, Ui, Vec2};
-use egui_simpletabs::to_metric_prefix;
+use egui_simpletabs::{edit_metric_f64, to_metric_prefix};
 use std::collections::HashMap;
 
 use cirmcut_sim::{PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTerminalComponent};
@@ -921,9 +921,9 @@ fn edit_twoterminal_component(
 ) {
     ui.strong(component.name());
     match component {
-        TwoTerminalComponent::Battery(v) => ui.add(DragValue::new(v).suffix(" V").speed(1e-2)),
+        TwoTerminalComponent::Battery(v) => ui.add(edit_metric_f64(v, "V")),
         TwoTerminalComponent::Inductor(i, maybe_coreid) => {
-            ui.add(DragValue::new(i).suffix(" H").speed(1e-2));
+            ui.add(edit_metric_f64(i, "H"));
             let mut has_core = maybe_coreid.is_some();
             if ui.checkbox(&mut has_core, "Core ID").changed() {
                 *maybe_coreid = has_core.then(|| 0);
@@ -933,13 +933,13 @@ fn edit_twoterminal_component(
                 DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)),
             )
         }
-        TwoTerminalComponent::Capacitor(c) => ui.add(DragValue::new(c).suffix(" F").speed(1e-2)),
-        TwoTerminalComponent::Resistor(r) => ui.add(DragValue::new(r).suffix(" Ω").speed(1e-2)),
+        TwoTerminalComponent::Capacitor(c) => ui.add(edit_metric_f64(c, "F")),
+        TwoTerminalComponent::Resistor(r) => ui.add(edit_metric_f64(r, "Ω")),
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
         TwoTerminalComponent::CurrentSource(i) => {
-            ui.add(DragValue::new(i).suffix(" A").speed(1e-2))
+            ui.add(edit_metric_f64(i, "A"))
         }
     };
 
