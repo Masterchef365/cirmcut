@@ -198,17 +198,12 @@ impl eframe::App for CircuitApp {
         egui::SidePanel::left("cfg").show(ctx, |ui| {
             ScrollArea::vertical().show(ui, |ui| {
                 ui.strong("Simulation");
-                let text = if self.paused { "Run" } else { "Pause" };
-                ui.horizontal(|ui| {
-                    if ui.button(text).clicked() {
-                        self.paused ^= true;
-                    }
-                    if self.paused {
-                        single_step |= ui.button("Single-step").clicked();
-                    }
-                });
 
-                rebuild_sim |= ui.button("Reset").clicked();
+                ui.horizontal(|ui| {
+                    egui_simpletabs::play_pause_button(ui, &mut self.paused);
+                    single_step |= egui_simpletabs::single_step_button(ui).clicked();
+                    rebuild_sim |= egui_simpletabs::reset_step_button(ui).clicked();
+                });
 
                 ui.horizontal(|ui| {
                     ui.label("Δt: ");
