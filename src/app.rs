@@ -329,78 +329,37 @@ impl eframe::App for CircuitApp {
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    ui.label("Add component: ");
                     let pos = egui_to_cellpos(self.view_rect.center());
-                    if ui.button("Wire").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Wire,
-                        );
-                    }
-                    if two_terminal_component_button(
-                        ui,
+
+                    let two_terminal_components = [
+                        TwoTerminalComponent::Wire,
                         TwoTerminalComponent::Resistor(1000.0),
-                        &self.vis_opt,
-                    )
-                    .clicked()
-                    {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Resistor(1000.0),
-                        );
+                        TwoTerminalComponent::Inductor(1.0, None),
+                        TwoTerminalComponent::Capacitor(10e-6),
+                        TwoTerminalComponent::Diode,
+                        TwoTerminalComponent::Battery(5.0),
+                        TwoTerminalComponent::Switch(true),
+                        TwoTerminalComponent::CurrentSource(0.1),
+                    ];
+
+                    for component in two_terminal_components {
+                        let resp = ui
+                            .push_id(component.name(), |ui| {
+                                two_terminal_component_button(ui, component, &self.vis_opt)
+                                    .on_hover_text(format!("Add {}", component.name()))
+                            })
+                            .inner;
+
+                        if resp.clicked() {
+                            rebuild_sim = true;
+                            self.editor.new_twoterminal(
+                                &mut self.current_file.diagram,
+                                pos,
+                                component,
+                            );
+                        }
                     }
-                    if ui.button("Inductor").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Inductor(1.0, None),
-                        );
-                    }
-                    if ui.button("Capacitor").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Capacitor(10e-6),
-                        );
-                    }
-                    if ui.button("Diode").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Diode,
-                        );
-                    }
-                    if ui.button("Battery").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Battery(5.0),
-                        );
-                    }
-                    if ui.button("Switch").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::Switch(true),
-                        );
-                    }
-                    if ui.button("Current source").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_twoterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            TwoTerminalComponent::CurrentSource(0.1),
-                        );
-                    }
+
                     if ui.button("PNP").clicked() {
                         rebuild_sim = true;
                         self.editor.new_threeterminal(
@@ -691,7 +650,18 @@ fn two_terminal_component_button(
 
     let size = Vec2::splat(zoom * width_virt);
 
-    ui.add_sized(size, |ui: &mut Ui| {
+    let wire = DiagramWireState {
+        voltage: 1.0,
+        current: 0.0,
+    };
+
+    let key = ui.next_auto_id();
+
+    let was_hovered = ui
+        .memory_mut(|w| w.data.get_temp::<bool>(key))
+        .unwrap_or(false);
+
+    let resp = ui.add_sized(size, |ui: &mut Ui| {
         let mut rect = egui::Rect::from_center_size(Pos2::ZERO, size);
         egui::Scene::new()
             .zoom_range(zoom..=zoom)
@@ -702,9 +672,9 @@ fn two_terminal_component_button(
                         Pos2::new(-width_virt / 2.0, 0.0),
                         Pos2::new(width_virt / 2.0, 0.0),
                     ],
-                    [DiagramWireState::ZERO; 2],
+                    [wire; 2],
                     component,
-                    false,
+                    was_hovered,
                     &vis_opt,
                 );
                 ui.painter().text(
@@ -716,6 +686,9 @@ fn two_terminal_component_button(
                 );
             })
             .response
-    })
-    .on_hover_text(component.name())
+    });
+
+    ui.memory_mut(|w| *w.data.get_temp_mut_or_default::<bool>(key) = resp.hovered());
+
+    resp
 }
