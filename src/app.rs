@@ -39,6 +39,7 @@ pub struct CircuitApp {
     debug_draw: bool,
     current_path: Option<PathBuf>,
     show_matrix: bool,
+    show_componentlist: bool,
 
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
@@ -72,6 +73,7 @@ impl Default for CircuitApp {
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
             debug_draw: false,
             current_path: None,
+            show_componentlist: false,
         }
     }
 }
@@ -186,6 +188,11 @@ impl eframe::App for CircuitApp {
                         ui.label("Show matrix");
                         ui.checkbox(&mut self.show_matrix, "On");
                         ui.end_row();
+
+                        ui.label("Show component list");
+                        ui.checkbox(&mut self.show_componentlist, "On");
+                        ui.end_row();
+
                         if ui.button("Reset viewbox").clicked() {
                             self.view_rect = Rect::ZERO;
                         }
@@ -314,7 +321,7 @@ impl eframe::App for CircuitApp {
         }
 
         if self.show_matrix {
-            egui::Window::new("matrix").show(ctx, |ui| {
+            egui::Window::new("Matrix").open(&mut self.show_matrix).show(ctx, |ui| {
                 ui.heading("Matrix");
                 if let Some(solver) = &self.sim {
                     let diagram = self.current_file.diagram.to_primitive_diagram();
@@ -335,7 +342,13 @@ impl eframe::App for CircuitApp {
                         selection,
                     );
                 }
-                ui.checkbox(&mut self.show_matrix, "Show matrix");
+            });
+        }
+
+        if self.show_componentlist {
+            egui::Window::new("Component list").open(&mut self.show_componentlist).show(ctx, |ui| {
+                ui.heading("Components");
+                show_component_list(ui, &mut self.current_file.diagram);
             });
         }
 
@@ -610,4 +623,32 @@ fn show_parameter_matrix(
                 }
             });
     });
+}
+
+fn show_component_list(ui: &mut Ui, diagram: &mut Diagram) {
+    ui.heading("Two terminal");
+    let mut del_idx = None;
+    egui::Grid::new("twoterminal").show(ui, |ui| {
+        ui.strong("Name");
+        ui.strong("Location");
+        ui.strong("Controls");
+        for (idx, (pos, comp)) in diagram.two_terminal.iter().enumerate() {
+            ui.label(comp.name());
+            ui.label(format!("{pos:?}"));
+            ui.horizontal(|ui| {
+                if ui.button("Delete").clicked() {
+                    del_idx = Some(idx);
+                }
+            });
+        }
+    });
+    if let Some(idx) = del_idx {
+        diagram.two_terminal.remove(idx);
+    }
+
+    ui.heading("Three terminal");
+    //let mut del_idx = None;
+
+    ui.heading("Ports");
+    //let mut del_idx = None;
 }
