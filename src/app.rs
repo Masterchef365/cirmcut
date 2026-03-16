@@ -348,7 +348,7 @@ impl eframe::App for CircuitApp {
         if self.show_componentlist {
             egui::Window::new("Component list").open(&mut self.show_componentlist).show(ctx, |ui| {
                 ui.heading("Components");
-                show_component_list(ui, &mut self.current_file.diagram);
+                show_component_list(ui, &mut self.current_file.diagram, &mut self.editor);
             });
         }
 
@@ -625,13 +625,14 @@ fn show_parameter_matrix(
     });
 }
 
-fn show_component_list(ui: &mut Ui, diagram: &mut Diagram) {
+fn show_component_list(ui: &mut Ui, diagram: &mut Diagram, editor: &mut DiagramEditor) {
     ui.heading("Two terminal");
     let mut del_idx = None;
-    egui::Grid::new("twoterminal").show(ui, |ui| {
+    egui::Grid::new("twoterminal").striped(true).show(ui, |ui| {
         ui.strong("Name");
         ui.strong("Location");
         ui.strong("Controls");
+        ui.end_row();
         for (idx, (pos, comp)) in diagram.two_terminal.iter().enumerate() {
             ui.label(comp.name());
             ui.label(format!("{pos:?}"));
@@ -639,7 +640,9 @@ fn show_component_list(ui: &mut Ui, diagram: &mut Diagram) {
                 if ui.button("Delete").clicked() {
                     del_idx = Some(idx);
                 }
+                ui.selectable_value(&mut editor.selected, Some((idx, SelectionType::TwoTerminal)), "Select");
             });
+            ui.end_row();
         }
     });
     if let Some(idx) = del_idx {
@@ -647,8 +650,51 @@ fn show_component_list(ui: &mut Ui, diagram: &mut Diagram) {
     }
 
     ui.heading("Three terminal");
-    //let mut del_idx = None;
+    let mut del_idx = None;
+    egui::Grid::new("threeterminal").striped(true).show(ui, |ui| {
+        ui.strong("Name");
+        ui.strong("Location");
+        ui.strong("Controls");
+        ui.end_row();
+        for (idx, (pos, comp)) in diagram.three_terminal.iter().enumerate() {
+            ui.label(comp.name());
+            ui.label(format!("{pos:?}"));
+            ui.horizontal(|ui| {
+                if ui.button("Delete").clicked() {
+                    del_idx = Some(idx);
+                }
+                ui.selectable_value(&mut editor.selected, Some((idx, SelectionType::ThreeTerminal)), "Select");
+            });
+            ui.end_row();
+        }
+    });
+    if let Some(idx) = del_idx {
+        diagram.three_terminal.remove(idx);
+    }
+
 
     ui.heading("Ports");
-    //let mut del_idx = None;
+    let mut del_idx = None;
+    egui::Grid::new("ports").striped(true).show(ui, |ui| {
+        ui.strong("Name");
+        ui.strong("Location");
+        ui.strong("Controls");
+        ui.end_row();
+        for (idx, (pos, comp)) in diagram.ports.iter_mut().enumerate() {
+            ui.text_edit_singleline(comp);
+            ui.label(format!("{pos:?}"));
+            ui.horizontal(|ui| {
+                if ui.button("Delete").clicked() {
+                    del_idx = Some(idx);
+                }
+                ui.selectable_value(&mut editor.selected, Some((idx, SelectionType::Port)), "Select");
+            });
+            ui.end_row();
+        }
+    });
+    if let Some(idx) = del_idx {
+        diagram.ports.remove(idx);
+    }
+
+   //let mut del_idx = None;
 }
