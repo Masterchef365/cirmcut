@@ -40,6 +40,7 @@ pub struct CircuitApp {
     current_path: Option<PathBuf>,
     show_matrix: bool,
     show_componentlist: bool,
+    show_shortcut_list: bool,
 
     current_file: CircuitFile,
     vis_opt: VisualizationOptions,
@@ -73,7 +74,8 @@ impl Default for CircuitApp {
             view_rect: Rect::from_center_size(Pos2::ZERO, Vec2::splat(1000.0)),
             debug_draw: false,
             current_path: None,
-            show_componentlist: false,
+            show_componentlist: true,
+            show_shortcut_list: true,
         }
     }
 }
@@ -348,9 +350,19 @@ impl eframe::App for CircuitApp {
         if self.show_componentlist {
             egui::Window::new("Component list").open(&mut self.show_componentlist).show(ctx, |ui| {
                 ui.heading("Components");
-                show_component_list(ui, &mut self.current_file.diagram, &mut self.editor);
+                egui::ScrollArea::both().show(ui, |ui| {
+                    show_component_list(ui, &mut self.current_file.diagram, &mut self.editor);
+                });
             });
         }
+
+        if self.show_shortcut_list {
+            egui::Window::new("Shortcut list").open(&mut self.show_shortcut_list).show(ctx, |ui| {
+                ui.heading("Shortcuts");
+                show_shortcut_list(ui);
+            });
+        }
+
 
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
@@ -697,4 +709,18 @@ fn show_component_list(ui: &mut Ui, diagram: &mut Diagram, editor: &mut DiagramE
     }
 
    //let mut del_idx = None;
+}
+
+fn show_shortcut_list(ui: &mut Ui) {
+    for (uppercase, key, component) in TWO_TERMINAL_SHORTCUTS {
+        let key = key.symbol_or_name();
+        let key = if uppercase {
+            key.to_uppercase()
+        } else {
+            key.to_lowercase()
+        };
+        ui.label(format!("Press {key} to add a {}", component.name()));
+    }
+    ui.label("Press DELETE to delete the selected component");
+    ui.label("Press ESC to unselect the selected component");
 }
