@@ -6,11 +6,9 @@ use cirmcut_sim::{PrimitiveDiagram, SimOutputs, ThreeTerminalComponent, TwoTermi
 
 pub type CellPos = (i32, i32);
 
-use crate::{
-    components::{
-        draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode,
-        draw_inductor, draw_resistor, draw_switch, draw_transistor,
-    },
+use crate::components::{
+    draw_battery, draw_capacitor, draw_component_value, draw_current_source, draw_diode,
+    draw_inductor, draw_resistor, draw_switch, draw_transistor,
 };
 
 pub const CELL_SIZE: f32 = 100.0;
@@ -147,14 +145,18 @@ impl Diagram {
             }
         }
 
-        RichPrimitiveDiagram { primitive, all_positions, ports }
+        RichPrimitiveDiagram {
+            primitive,
+            all_positions,
+            ports,
+        }
     }
 }
 
-pub struct RichPrimitiveDiagram { 
-    pub primitive: PrimitiveDiagram, 
+pub struct RichPrimitiveDiagram {
+    pub primitive: PrimitiveDiagram,
     pub all_positions: HashMap<CellPos, usize>,
-    pub ports: HashMap<String, Vec<usize>>
+    pub ports: HashMap<String, Vec<usize>>,
 }
 
 pub fn draw_grid(ui: &mut egui::Ui, rect: Rect, radius: f32, color: Color32) {
@@ -848,7 +850,7 @@ fn draw_threeterminal_component(
     }
 }
 
-fn draw_twoterminal_component(
+pub fn draw_twoterminal_component(
     painter: &Painter,
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
@@ -934,16 +936,15 @@ fn edit_twoterminal_component(
                     has_core,
                     DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)),
                 );
-            }).response
-        },
+            })
+            .response
+        }
         TwoTerminalComponent::Capacitor(c) => ui.add(edit_metric_f64(c, "F")),
         TwoTerminalComponent::Resistor(r) => ui.add(edit_metric_f64(r, "Ω")),
         TwoTerminalComponent::Wire => ui.response(),
         TwoTerminalComponent::Diode => ui.response(),
         TwoTerminalComponent::Switch(is_open) => ui.checkbox(is_open, "Switch open"),
-        TwoTerminalComponent::CurrentSource(i) => {
-            ui.add(edit_metric_f64(i, "A"))
-        }
+        TwoTerminalComponent::CurrentSource(i) => ui.add(edit_metric_f64(i, "A")),
     };
 
     let voltage = wires[1].voltage - wires[0].voltage;

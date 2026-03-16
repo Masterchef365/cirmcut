@@ -15,8 +15,8 @@ use egui::{
 };
 
 use crate::circuit_widget::{
-    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
-    SelectionType, VisualizationOptions,
+    draw_grid, draw_twoterminal_component, egui_to_cellpos, Diagram, DiagramEditor, DiagramState,
+    DiagramWireState, SelectionType, VisualizationOptions,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -296,10 +296,9 @@ impl eframe::App for CircuitApp {
                 ui.strong("Component");
                 rebuild_sim |=
                     self.editor
-                    .edit_component(ui, &mut self.current_file.diagram, state);
-                });
+                        .edit_component(ui, &mut self.current_file.diagram, state);
+            });
         }
-
 
         if self.show_matrix {
             egui::Window::new("matrix").show(ctx, |ui| {
@@ -340,7 +339,7 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::Wire,
                         );
                     }
-                    if ui.button("Resistor").clicked() {
+                    if two_terminal_component_button(ui, TwoTerminalComponent::Resistor(1000.0), &self.vis_opt).clicked() {
                         rebuild_sim = true;
                         self.editor.new_twoterminal(
                             &mut self.current_file.diagram,
@@ -673,4 +672,31 @@ fn show_parameter_matrix(
                 }
             });
     });
+}
+
+fn two_terminal_component_button(
+    ui: &mut Ui,
+    component: TwoTerminalComponent,
+    vis_opt: &VisualizationOptions,
+) -> egui::Response {
+    let width_virt: f32 = 100.0;
+
+    let zoom = 0.5;
+
+    let size = Vec2::splat(zoom * width_virt);
+
+    ui.add_sized(size, |ui: &mut Ui| {
+        let mut rect = egui::Rect::from_center_size(Pos2::ZERO, size);
+        egui::Scene::new().zoom_range(zoom..=zoom).show(ui, &mut rect, |ui| {
+            draw_twoterminal_component(
+                ui.painter(),
+                [Pos2::new(-width_virt/2.0, 0.0), Pos2::new(width_virt/2.0, 0.0)],
+                [DiagramWireState::default(); 2],
+                component,
+                false,
+                &vis_opt,
+            );
+        }).response
+    })
+    .on_hover_text(component.name())
 }

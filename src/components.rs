@@ -4,9 +4,7 @@ use cirmcut_sim::TwoTerminalComponent;
 use egui::{Align2, Color32, Painter, Pos2, Shape, Stroke, Vec2};
 use egui_simpletabs::to_metric_prefix;
 
-use crate::{
-    circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE},
-};
+use crate::circuit_widget::{DiagramWireState, VisualizationOptions, CELL_SIZE};
 
 pub fn draw_transistor(
     painter: &Painter,
@@ -29,7 +27,11 @@ pub fn draw_transistor(
     let junction_radius = 0.25;
 
     base_wire.wire(painter, base_input_tap, base_in, selected, vis);
-    DiagramWireState {voltage: 0.0, current: 0.0}.wire(
+    DiagramWireState {
+        voltage: 0.0,
+        current: 0.0,
+    }
+    .wire(
         painter,
         base_input_tap - orient_x * junction_radius,
         base_input_tap + orient_x * junction_radius,
@@ -354,7 +356,7 @@ fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
                 prefix.push_str(&format!(" (Tf. {id})"));
             }
             Some(prefix)
-        },
+        }
         TwoTerminalComponent::Resistor(r) => Some(to_metric_prefix(r, 'Ω')),
         _ => None,
     }
