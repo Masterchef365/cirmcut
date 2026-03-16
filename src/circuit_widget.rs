@@ -40,6 +40,13 @@ pub struct DiagramWireState {
     pub current: f64,
 }
 
+impl DiagramWireState {
+    pub const ZERO: Self = Self {
+        voltage: 0.0,
+        current: 0.0,
+    };
+}
+
 impl Default for DiagramWireState {
     fn default() -> Self {
         Self {
@@ -850,7 +857,7 @@ fn draw_threeterminal_component(
     }
 }
 
-pub fn draw_twoterminal_component(
+pub fn draw_twoterminal_component_no_value(
     painter: &Painter,
     pos: [Pos2; 2],
     wires: [DiagramWireState; 2],
@@ -872,6 +879,17 @@ pub fn draw_twoterminal_component(
             draw_current_source(painter, pos, wires, selected, vis)
         }
     }
+}
+
+pub fn draw_twoterminal_component(
+    painter: &Painter,
+    pos: [Pos2; 2],
+    wires: [DiagramWireState; 2],
+    component: TwoTerminalComponent,
+    selected: bool,
+    vis: &VisualizationOptions,
+) {
+    draw_twoterminal_component_no_value(painter, pos, wires, component, selected, vis);
     draw_component_value(painter, pos, component);
 }
 

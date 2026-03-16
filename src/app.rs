@@ -15,8 +15,8 @@ use egui::{
 };
 
 use crate::circuit_widget::{
-    draw_grid, draw_twoterminal_component, egui_to_cellpos, Diagram, DiagramEditor, DiagramState,
-    DiagramWireState, SelectionType, VisualizationOptions,
+    draw_grid, draw_twoterminal_component, draw_twoterminal_component_no_value, egui_to_cellpos,
+    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions,
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -339,7 +339,13 @@ impl eframe::App for CircuitApp {
                             TwoTerminalComponent::Wire,
                         );
                     }
-                    if two_terminal_component_button(ui, TwoTerminalComponent::Resistor(1000.0), &self.vis_opt).clicked() {
+                    if two_terminal_component_button(
+                        ui,
+                        TwoTerminalComponent::Resistor(1000.0),
+                        &self.vis_opt,
+                    )
+                    .clicked()
+                    {
                         rebuild_sim = true;
                         self.editor.new_twoterminal(
                             &mut self.current_file.diagram,
@@ -687,16 +693,29 @@ fn two_terminal_component_button(
 
     ui.add_sized(size, |ui: &mut Ui| {
         let mut rect = egui::Rect::from_center_size(Pos2::ZERO, size);
-        egui::Scene::new().zoom_range(zoom..=zoom).show(ui, &mut rect, |ui| {
-            draw_twoterminal_component(
-                ui.painter(),
-                [Pos2::new(-width_virt/2.0, 0.0), Pos2::new(width_virt/2.0, 0.0)],
-                [DiagramWireState::default(); 2],
-                component,
-                false,
-                &vis_opt,
-            );
-        }).response
+        egui::Scene::new()
+            .zoom_range(zoom..=zoom)
+            .show(ui, &mut rect, |ui| {
+                draw_twoterminal_component_no_value(
+                    ui.painter(),
+                    [
+                        Pos2::new(-width_virt / 2.0, 0.0),
+                        Pos2::new(width_virt / 2.0, 0.0),
+                    ],
+                    [DiagramWireState::ZERO; 2],
+                    component,
+                    false,
+                    &vis_opt,
+                );
+                ui.painter().text(
+                    Pos2::new(0.0, width_virt / 6.0),
+                    egui::Align2::CENTER_TOP,
+                    component.name(),
+                    Default::default(),
+                    Color32::WHITE,
+                );
+            })
+            .response
     })
     .on_hover_text(component.name())
 }
