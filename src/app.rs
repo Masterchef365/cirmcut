@@ -15,8 +15,22 @@ use egui::{
 };
 
 use crate::circuit_widget::{
-    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions, draw_grid, draw_twoterminal_component, draw_twoterminal_component_no_value, egui_to_cellpos, show_add_component_buttons
+    draw_grid, draw_twoterminal_component, draw_twoterminal_component_no_value, egui_to_cellpos,
+    show_add_component_buttons, Diagram, DiagramEditor, DiagramState, DiagramWireState,
+    SelectionType, VisualizationOptions,
 };
+
+/// (capitalized/shift, key, component)
+const TWO_TERMINAL_SHORTCUTS: [(bool, Key, TwoTerminalComponent); 8] = [
+    (false, Key::W, TwoTerminalComponent::Wire),
+    (true, Key::L, TwoTerminalComponent::Inductor(1.0, None)),
+    (false, Key::R, TwoTerminalComponent::Resistor(1000.0)),
+    (false, Key::C, TwoTerminalComponent::Capacitor(1000.0)),
+    (false, Key::D, TwoTerminalComponent::Diode),
+    (false, Key::S, TwoTerminalComponent::Switch(false)),
+    (false, Key::V, TwoTerminalComponent::Battery(5.0)),
+    (false, Key::A, TwoTerminalComponent::CurrentSource(10e-3)),
+];
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
@@ -328,7 +342,12 @@ impl eframe::App for CircuitApp {
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    rebuild_sim |= show_add_component_buttons(ui, self.view_rect.center(), &mut self.editor, &mut self.current_file.diagram);
+                    rebuild_sim |= show_add_component_buttons(
+                        ui,
+                        self.view_rect.center(),
+                        &mut self.editor,
+                        &mut self.current_file.diagram,
+                    );
                 });
             });
         });
@@ -349,14 +368,31 @@ impl eframe::App for CircuitApp {
                     }
                 });
 
+                // Delete
                 if ui.input(|r| r.key_pressed(Key::Delete)) {
                     rebuild_sim = true;
                     self.editor.delete(&mut self.current_file.diagram);
                 }
 
+                // Reset selection
                 if resp.response.clicked() || ui.input(|r| r.key_pressed(Key::Escape)) {
                     self.editor.reset_selection();
                 }
+
+                // Shortcuts
+                if let Some(mouse_pos) = resp.response.hover_pos() {
+                    for (shift, key, component) in TWO_TERMINAL_SHORTCUTS {
+                        if ui.input(|r| r.key_pressed(key) && r.modifiers.shift == shift) {
+                            self.editor.new_twoterminal(
+                                &mut self.current_file.diagram,
+                                egui_to_cellpos(mouse_pos),
+                                component,
+                            );
+                            rebuild_sim = true;
+                        }
+                    }
+                }
+
             });
         });
 
@@ -575,4 +611,3 @@ fn show_parameter_matrix(
             });
     });
 }
-
