@@ -262,14 +262,6 @@ impl eframe::App for CircuitApp {
                 });
 
                 ui.separator();
-
-                if let Some(state) = &state {
-                    rebuild_sim |=
-                        self.editor
-                            .edit_component(ui, &mut self.current_file.diagram, state);
-                }
-
-                ui.separator();
                 ui.strong("Visualization");
                 ui.add(
                     egui_simpletabs::edit_metric_f64(&mut self.vis_opt.voltage_scale, "V")
@@ -299,8 +291,18 @@ impl eframe::App for CircuitApp {
             });
         });
 
+        if let Some(state) = &state {
+            egui::SidePanel::right("component").show(ctx, |ui| {
+                ui.strong("Component");
+                rebuild_sim |=
+                    self.editor
+                    .edit_component(ui, &mut self.current_file.diagram, state);
+                });
+        }
+
+
         if self.show_matrix {
-            egui::SidePanel::right("matrix").show(ctx, |ui| {
+            egui::Window::new("matrix").show(ctx, |ui| {
                 ui.heading("Matrix");
                 if let Some(solver) = &self.sim {
                     let diagram = self.current_file.diagram.to_primitive_diagram();
