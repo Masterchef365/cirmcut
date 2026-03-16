@@ -14,9 +14,10 @@ use egui::{
     Color32, DragValue, Key, Layout, Pos2, Rect, RichText, ScrollArea, Ui, Vec2, ViewportCommand,
 };
 
-use crate::{circuit_widget::{
-    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions, draw_grid, egui_to_cellpos
-}};
+use crate::circuit_widget::{
+    draw_grid, egui_to_cellpos, Diagram, DiagramEditor, DiagramState, DiagramWireState,
+    SelectionType, VisualizationOptions,
+};
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct CircuitApp {
@@ -207,58 +208,58 @@ impl eframe::App for CircuitApp {
 
                 ui.horizontal(|ui| {
                     ui.label("Δt: ");
-                    ui.add(
-                        egui_simpletabs::edit_metric_f64(&mut self.current_file.dt, "s")
-                    );
+                    ui.add(egui_simpletabs::edit_metric_f64(
+                        &mut self.current_file.dt,
+                        "s",
+                    ));
                 });
 
                 if let Some(error) = &self.error {
                     ui.label(RichText::new(error).color(Color32::RED));
                 }
 
-                ui.separator();
-                ui.strong("Advanced");
-
-                ui.add(
-                    DragValue::new(&mut self.current_file.cfg.max_nr_iters)
-                        .prefix("Max NR iters: "),
-                );
-                ui.horizontal(|ui| {
+                ui.collapsing("Advanced", |ui| {
                     ui.add(
-                        DragValue::new(&mut self.current_file.cfg.nr_step_size)
+                        DragValue::new(&mut self.current_file.cfg.max_nr_iters)
+                            .prefix("Max NR iters: "),
+                    );
+                    ui.horizontal(|ui| {
+                        ui.add(
+                            DragValue::new(&mut self.current_file.cfg.nr_step_size)
+                                .speed(1e-6)
+                                .prefix("Initial NR step size: "),
+                        );
+                        ui.checkbox(&mut self.current_file.cfg.adaptive_step_size, "Adaptive");
+                    });
+
+                    ui.add(
+                        DragValue::new(&mut self.current_file.cfg.nr_tolerance)
                             .speed(1e-6)
-                            .prefix("Initial NR step size: "),
+                            .prefix("NR tolerance: "),
                     );
-                    ui.checkbox(&mut self.current_file.cfg.adaptive_step_size, "Adaptive");
+                    ui.add(
+                        DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
+                            .speed(1e-6)
+                            .prefix("Matrix solve tol: "),
+                    );
+
+                    ui.horizontal(|ui| {
+                        ui.selectable_value(
+                            &mut self.current_file.cfg.mode,
+                            SolverMode::NewtonRaphson,
+                            "Newton-Raphson",
+                        );
+                        ui.selectable_value(
+                            &mut self.current_file.cfg.mode,
+                            SolverMode::Linear,
+                            "Linear",
+                        );
+                    });
+
+                    if ui.button("Default cfg").clicked() {
+                        self.current_file.cfg = Default::default();
+                    }
                 });
-
-                ui.add(
-                    DragValue::new(&mut self.current_file.cfg.nr_tolerance)
-                        .speed(1e-6)
-                        .prefix("NR tolerance: "),
-                );
-                ui.add(
-                    DragValue::new(&mut self.current_file.cfg.dx_soln_tolerance)
-                        .speed(1e-6)
-                        .prefix("Matrix solve tol: "),
-                );
-
-                ui.horizontal(|ui| {
-                    ui.selectable_value(
-                        &mut self.current_file.cfg.mode,
-                        SolverMode::NewtonRaphson,
-                        "Newton-Raphson",
-                    );
-                    ui.selectable_value(
-                        &mut self.current_file.cfg.mode,
-                        SolverMode::Linear,
-                        "Linear",
-                    );
-                });
-
-                if ui.button("Default cfg").clicked() {
-                    self.current_file.cfg = Default::default();
-                }
 
                 ui.separator();
 
@@ -550,7 +551,13 @@ fn display_number(ui: &mut Ui, value: f64) {
     ui.strong(format!("{value:.2e}"));
 }
 
-fn show_parameter_matrix(ui: &mut Ui, dt: f64, sim: &Solver, diagram: &PrimitiveDiagram, selected_idx: Option<usize>) {
+fn show_parameter_matrix(
+    ui: &mut Ui,
+    dt: f64,
+    sim: &Solver,
+    diagram: &PrimitiveDiagram,
+    selected_idx: Option<usize>,
+) {
     //let map: HashMap<usize, ()>;
     let (matrix, params) = stamp(
         dt,
