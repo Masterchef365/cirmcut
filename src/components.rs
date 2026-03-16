@@ -351,7 +351,7 @@ fn format_component_value(component: TwoTerminalComponent) -> Option<String> {
         TwoTerminalComponent::Inductor(i, maybe_core_id) => {
             let mut prefix = to_metric_prefix(i, 'H');
             if let Some(id) = maybe_core_id {
-                prefix.push_str(&format!(" (core {id})"));
+                prefix.push_str(&format!(" (Tf. {id})"));
             }
             Some(prefix)
         },

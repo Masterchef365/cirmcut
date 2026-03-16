@@ -925,14 +925,17 @@ fn edit_twoterminal_component(
         TwoTerminalComponent::Inductor(i, maybe_coreid) => {
             ui.add(edit_metric_f64(i, "H"));
             let mut has_core = maybe_coreid.is_some();
-            if ui.checkbox(&mut has_core, "Core ID").changed() {
+            if ui.checkbox(&mut has_core, "Transformer").changed() {
                 *maybe_coreid = has_core.then(|| 0);
             }
-            ui.add_enabled(
-                has_core,
-                DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)),
-            )
-        }
+            ui.horizontal(|ui| {
+                ui.label("Tf. Core ID: ");
+                ui.add_enabled(
+                    has_core,
+                    DragValue::new(maybe_coreid.as_mut().unwrap_or(&mut 0)),
+                );
+            }).response
+        },
         TwoTerminalComponent::Capacitor(c) => ui.add(edit_metric_f64(c, "F")),
         TwoTerminalComponent::Resistor(r) => ui.add(edit_metric_f64(r, "Ω")),
         TwoTerminalComponent::Wire => ui.response(),
