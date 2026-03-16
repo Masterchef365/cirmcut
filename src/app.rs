@@ -15,8 +15,7 @@ use egui::{
 };
 
 use crate::circuit_widget::{
-    draw_grid, draw_twoterminal_component, draw_twoterminal_component_no_value, egui_to_cellpos,
-    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions,
+    Diagram, DiagramEditor, DiagramState, DiagramWireState, SelectionType, VisualizationOptions, draw_grid, draw_twoterminal_component, draw_twoterminal_component_no_value, egui_to_cellpos, show_add_component_buttons
 };
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -329,69 +328,7 @@ impl eframe::App for CircuitApp {
         egui::TopBottomPanel::bottom("buttons").show(ctx, |ui| {
             ScrollArea::horizontal().show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    let pos = egui_to_cellpos(self.view_rect.center());
-
-                    let two_terminal_components = [
-                        TwoTerminalComponent::Wire,
-                        TwoTerminalComponent::Resistor(1000.0),
-                        TwoTerminalComponent::Inductor(1.0, None),
-                        TwoTerminalComponent::Capacitor(10e-6),
-                        TwoTerminalComponent::Diode,
-                        TwoTerminalComponent::Battery(5.0),
-                        TwoTerminalComponent::Switch(true),
-                        TwoTerminalComponent::CurrentSource(0.1),
-                    ];
-
-                    for component in two_terminal_components {
-                        let resp = ui
-                            .push_id(component.name(), |ui| {
-                                two_terminal_component_button(ui, component, &self.vis_opt)
-                                    .on_hover_text(format!("Add {}", component.name()))
-                            })
-                            .inner;
-
-                        if resp.clicked() {
-                            rebuild_sim = true;
-                            self.editor.new_twoterminal(
-                                &mut self.current_file.diagram,
-                                pos,
-                                component,
-                            );
-                        }
-                    }
-
-                    if ui.button("PNP").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_threeterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            ThreeTerminalComponent::PTransistor(100.0),
-                        );
-                    }
-                    if ui.button("NPN").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_threeterminal(
-                            &mut self.current_file.diagram,
-                            pos,
-                            ThreeTerminalComponent::NTransistor(100.0),
-                        );
-                    }
-                    /*
-                    if ui.button("Port").clicked() {
-                        rebuild_sim = true;
-                        self.editor.new_port(
-                            &mut self.current_file.diagram,
-                            pos,
-                            "New port".into(),
-                        );
-                    }
-                    */
-                    /*
-                    if ui.button("Delete").clicked() {
-                        self.editor.delete();
-                    }
-                    ui.checkbox(&mut self.debug_draw, "Debug draw");
-                    */
+                    rebuild_sim |= show_add_component_buttons(ui, self.view_rect.center(), &mut self.editor, &mut self.current_file.diagram);
                 });
             });
         });
@@ -639,56 +576,3 @@ fn show_parameter_matrix(
     });
 }
 
-fn two_terminal_component_button(
-    ui: &mut Ui,
-    component: TwoTerminalComponent,
-    vis_opt: &VisualizationOptions,
-) -> egui::Response {
-    let width_virt: f32 = 100.0;
-
-    let zoom = 0.5;
-
-    let size = Vec2::splat(zoom * width_virt);
-
-    let wire = DiagramWireState {
-        voltage: 1.0,
-        current: 0.0,
-    };
-
-    let key = ui.next_auto_id();
-
-    let was_hovered = ui
-        .memory_mut(|w| w.data.get_temp::<bool>(key))
-        .unwrap_or(false);
-
-    let resp = ui.add_sized(size, |ui: &mut Ui| {
-        let mut rect = egui::Rect::from_center_size(Pos2::ZERO, size);
-        egui::Scene::new()
-            .zoom_range(zoom..=zoom)
-            .show(ui, &mut rect, |ui| {
-                draw_twoterminal_component_no_value(
-                    ui.painter(),
-                    [
-                        Pos2::new(-width_virt / 2.0, 0.0),
-                        Pos2::new(width_virt / 2.0, 0.0),
-                    ],
-                    [wire; 2],
-                    component,
-                    was_hovered,
-                    &vis_opt,
-                );
-                ui.painter().text(
-                    Pos2::new(0.0, width_virt / 6.0),
-                    egui::Align2::CENTER_TOP,
-                    component.name(),
-                    Default::default(),
-                    Color32::WHITE,
-                );
-            })
-            .response
-    });
-
-    ui.memory_mut(|w| *w.data.get_temp_mut_or_default::<bool>(key) = resp.hovered());
-
-    resp
-}
